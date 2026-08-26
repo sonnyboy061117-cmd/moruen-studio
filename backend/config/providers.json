@@ -1,0 +1,50 @@
+{
+  "_comment": "模型供应商配置,4 家",
+  "default_provider": "claude",
+  "providers": {
+    "claude": {
+      "name": "克劳德 Claude (Anthropic)",
+      "short": "克",
+      "base_url": "https://api.anthropic.com/v1/messages",
+      "type": "anthropic",
+      "models": ["claude-sonnet-4-5", "claude-haiku-4-5"],
+      "default_model": "claude-sonnet-4-5",
+      "key_prefix": "sk-ant-",
+      "default_configured": true,
+      "cost_per_1k_tokens": 0.024
+    },
+    "openai": {
+      "name": "GPT-4 (OpenAI)",
+      "short": "G",
+      "base_url": "https://api.openai.com/v1/chat/completions",
+      "type": "openai",
+      "models": ["gpt-4o", "gpt-4o-mini"],
+      "default_model": "gpt-4o-mini",
+      "key_prefix": "sk-",
+      "default_configured": false,
+      "cost_per_1k_tokens": 0.018
+    },
+    "wenxin": {
+      "name": "文心一言 (百度)",
+      "short": "心",
+      "base_url": "https://qianfan.baidubce.com/v2/chat/completions",
+      "type": "openai",
+      "models": ["ernie-4.5-8k", "ernie-3.5-8k"],
+      "default_model": "ernie-4.5-8k",
+      "key_prefix": "",
+      "default_configured": true,
+      "cost_per_1k_tokens": 0.008
+    },
+    "deepseek": {
+      "name": "DeepSeek (深度求索)",
+      "short": "深",
+      "base_url": "https://api.deepseek.com/v1/chat/completions",
+      "type": "openai",
+      "models": ["deepseek-chat", "deepseek-reasoner"],
+      "default_model": "deepseek-chat",
+      "key_prefix": "sk-",
+      "default_configured": false,
+      "cost_per_1k_tokens": 0.002
+    }
+  }
+}

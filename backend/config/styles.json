@@ -1,0 +1,21 @@
+{
+  "_comment": "排版: 5 套风格,字号 4 档,行间距 3 档,均为固定值(非连续)",
+  "layout_styles": [
+    { "key": "简约", "color": "#1f1c18", "accent": "#ea580c", "font": "Noto Sans SC", "bg": "#fffaf3" },
+    { "key": "文艺", "color": "#5b4636", "accent": "#a16207", "font": "Noto Serif SC", "bg": "#fdf6e3" },
+    { "key": "商务", "color": "#1e293b", "accent": "#1d4ed8", "font": "Noto Sans SC", "bg": "#f8fafc" },
+    { "key": "清新", "color": "#065f46", "accent": "#10b981", "font": "Noto Sans SC", "bg": "#f0fdf4" },
+    { "key": "经典", "color": "#000000", "accent": "#dc2626", "font": "Noto Serif SC", "bg": "#fafaf9" }
+  ],
+  "font_sizes": [
+    { "key": "14px", "label": "14px 紧凑", "px": 14 },
+    { "key": "15px", "label": "15px 推荐", "px": 15, "default": true },
+    { "key": "16px", "label": "16px 易读", "px": 16 },
+    { "key": "17px", "label": "17px 舒适", "px": 17 }
+  ],
+  "line_heights": [
+    { "key": "1.5", "label": "1.5 紧凑", "val": 1.5 },
+    { "key": "1.75", "label": "1.75 推荐", "val": 1.75, "default": true },
+    { "key": "2.0", "label": "2.0 宽松", "val": 2.0 }
+  ]
+}

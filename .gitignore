@@ -1,0 +1,66 @@
+# 依赖
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 环境变量和密钥(绝不能提交)
+.env
+.env.local
+.env.production
+.env.development
+*.key
+*.pem
+backend/data/
+backend/data/master.key
+backend/data/keys.enc.json
+data/
+
+# 日志
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# 运行时临时文件
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cache/
+.tmp/
+.temp/
+
+# 测试
+coverage/
+.nyc_output/
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+
+# 构建产物
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# 截图(本地调试用)
+screenshot*.png
+screenshot-*.png
+
+# Python(辅助脚本)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 容器
+*.tar

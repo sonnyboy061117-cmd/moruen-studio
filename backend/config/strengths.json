@@ -1,0 +1,35 @@
+{
+  "_comment": "批量改写与万能改写是两套独立参数,代码不复用同一枚举",
+  "batch_rewrite_strengths": [
+    { "key": "轻度", "label": "轻度-保留原文结构", "keepStructure": true },
+    { "key": "中度", "label": "中度-推荐", "keepStructure": false },
+    { "key": "深度", "label": "深度-彻底重写", "keepStructure": false }
+  ],
+  "universal_rewrite_strengths": [
+    { "key": "轻度", "label": "轻度" },
+    { "key": "中度", "label": "中度" },
+    { "key": "深度", "label": "深度" },
+    { "key": "彻底重写", "label": "彻底重写" }
+  ],
+  "batch_rewrite_logics": [
+    { "key": "同角度换词", "label": "同角度换词", "default": true },
+    { "key": "不同角度重写", "label": "不同角度重写", "default": true },
+    { "key": "扩写加案例", "label": "扩写加案例", "default": false },
+    { "key": "缩写精炼", "label": "缩写精炼", "default": false },
+    { "key": "对话化改写", "label": "对话化改写", "default": false },
+    { "key": "故事化包装", "label": "故事化包装", "default": false }
+  ],
+  "batch_rewrite_target_lengths": [
+    { "key": "保持原长度", "label": "保持原长度" },
+    { "key": "500-800", "label": "500-800 字" },
+    { "key": "800-1200", "label": "800-1200 字" },
+    { "key": "1200-1500", "label": "1200-1500 字" }
+  ],
+  "target_audiences": [
+    { "key": "通用", "label": "通用" },
+    { "key": "年轻人", "label": "年轻人" },
+    { "key": "职场人", "label": "职场人" },
+    { "key": "宝妈", "label": "宝妈" },
+    { "key": "中老年", "label": "中老年" }
+  ]
+}

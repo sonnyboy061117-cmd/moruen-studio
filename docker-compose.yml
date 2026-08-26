@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  moruen:
+    build: .
+    container_name: moruen-studio
+    restart: unless-stopped
+    ports:
+      - "${MORUEN_PORT:-8787}:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - ALLOW_ORIGIN=${ALLOW_ORIGIN:-*}
+      - AUTH_USER=${AUTH_USER:-moruen}
+      - AUTH_PASS=${AUTH_PASS:-moruen@2026}
+      - TZ=Asia/Shanghai
+    volumes:
+      # 持久化秘钥存储(重启不丢)
+      - moruen_data:/app/backend/data
+      # 可选:挂载配置方便热改(需重启)
+      # - ./backend/config:/app/backend/config:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  moruen_data:
+    driver: local

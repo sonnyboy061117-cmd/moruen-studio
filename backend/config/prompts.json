@@ -1,0 +1,11 @@
+{
+  "_comment": "标题/原创/万能改写/排版的风格枚举,供表单和 prompt 共用",
+  "title_styles": ["悬念", "数字", "对比", "反问"],
+  "title_formats": ["两段式", "三段式", "短句", "长句"],
+  "article_styles": ["干货", "故事", "观点", "科普"],
+  "word_count_options": [500, 800, 1200, 1500, 2000],
+  "default_word_count": 800,
+  "default_topic_count_per_article": 3,
+  "max_total_articles": 120,
+  "default_rewrite_count": 3
+}

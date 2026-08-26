@@ -1,0 +1,17 @@
+{
+  "domains": [
+    { "key": "理财", "label": "理财", "emoji": "💰" },
+    { "key": "职场", "label": "职场", "emoji": "💼" },
+    { "key": "情感", "label": "情感", "emoji": "💗" },
+    { "key": "育儿", "label": "育儿", "emoji": "👶" },
+    { "key": "健康", "label": "健康", "emoji": "🏥" },
+    { "key": "科技", "label": "科技", "emoji": "📱" },
+    { "key": "美食", "label": "美食", "emoji": "🍜" },
+    { "key": "旅行", "label": "旅行", "emoji": "✈️" },
+    { "key": "历史", "label": "历史", "emoji": "📜" },
+    { "key": "体育", "label": "体育", "emoji": "⚽" },
+    { "key": "娱乐", "label": "娱乐", "emoji": "🎬" },
+    { "key": "汽车", "label": "汽车", "emoji": "🚗" },
+    { "key": "军事", "label": "军事", "emoji": "🛡️" }
+  ]
+}

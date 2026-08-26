@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>墨韵工坊 · 新媒体一站式生成工具</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23ea580c'/%3E%3Ctext x='50' y='66' font-size='56' text-anchor='middle' fill='white' font-family='serif' font-weight='700'%3E墨%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f1;
+    --bg-soft: #f4efe5;
+    --surface: #ffffff;
+    --surface-2: #fbf8f2;
+    --border: #ebe3d2;
+    --border-soft: #f0e9d9;
+    --text: #1f1c18;
+    --text-2: #4a453e;
+    --muted: #8a8275;
+    --line: #e5ddc8;
+    --primary: #c2410c;
+    --primary-soft: #fff1e7;
+    --primary-strong: #ea580c;
+    --indigo: #4f46e5;
+    --indigo-soft: #eef0ff;
+    --emerald: #059669;
+    --emerald-soft: #ecfdf5;
+    --amber: #d97706;
+    --amber-soft: #fef3c7;
+    --pink: #db2777;
+    --pink-soft: #fce7f3;
+    --sky: #0284c7;
+    --sky-soft: #e0f2fe;
+    --violet: #7c3aed;
+    --violet-soft: #f3e8ff;
+    --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+    --shadow: 0 2px 8px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.04);
+    --shadow-md: 0 6px 24px -4px rgba(28, 25, 23, 0.08), 0 2px 4px rgba(28, 25, 23, 0.04);
+    --shadow-lg: 0 20px 48px -8px rgba(28, 25, 23, 0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', 'Outfit', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 800px 400px at 0% 0%, rgba(234, 88, 12, 0.04), transparent 60%),
+      radial-gradient(ellipse 600px 400px at 100% 0%, rgba(79, 70, 229, 0.03), transparent 60%),
+      var(--bg);
+  }
+
+  /* Layout */
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 22px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 22px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 18px;
+  }
+  .brand-mark {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), #f59e0b);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    box-shadow: 0 4px 10px -2px rgba(234, 88, 12, 0.3);
+  }
+  .brand-name {
+    font-family: 'Noto Serif SC', serif;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+  }
+  .brand-tag {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .nav-section {
+    margin-bottom: 20px;
+  }
+  .nav-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 0 12px 8px;
+    font-weight: 500;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 500;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .nav-item:hover {
+    background: var(--bg-soft);
+    color: var(--text);
+  }
+  .nav-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+  .nav-item svg {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+  }
+  .nav-item .badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 18px 12px;
+    border-top: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f97316);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 600; font-size: 13px;
+  }
+  .user-info { flex: 1; }
+  .user-name { font-size: 13px; font-weight: 600; }
+  .user-plan { font-size: 11px; color: var(--muted); }
+
+  /* Main */
+  .main {
+    padding: 0 40px 60px;
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 0 24px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 36px;
+  }
+  .crumbs {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+  }
+  .crumbs strong { color: var(--text); font-weight: 600; }
+  .topbar-actions { display: flex; align-items: center; gap: 12px; }
+  .quota {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--emerald-soft);
+    color: var(--emerald);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .quota-dot { width: 6px; height: 6px; background: var(--emerald); border-radius: 50%; }
+
+  /* Section */
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hero */
+  .hero {
+    padding: 30px 0 50px;
+    text-align: center;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .eyebrow-dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+  .hero h1 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .hero h1 .accent { color: var(--primary); }
+  .hero p {
+    font-size: 15.5px;
+    color: var(--text-2);
+    max-width: 580px;
+    margin: 0 auto 28px;
+    line-height: 1.65;
+  }
+  .hero-cta { display: inline-flex; gap: 12px; }
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 12px -2px rgba(234, 88, 12, 0.3);
+  }
+  .btn-primary:hover { background: var(--primary-strong); transform: translateY(-1px); }
+  .btn-ghost {
+    background: var(--surface);
+    color: var(--text-2);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--text-2); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* Section heading */
+  .section { margin-bottom: 56px; }
+  .section-head { text-align: center; margin-bottom: 30px; }
+  .section-head h2 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .section-head .underline {
+    width: 36px; height: 3px;
+    background: linear-gradient(90deg, var(--primary), #f59e0b);
+    border-radius: 2px;
+    margin: 10px auto 0;
+  }
+  .section-head p { color: var(--muted); font-size: 14px; }
+
+  /* Feature cards (4 column) */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 22px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border);
+  }
+  .card-icon {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .card-icon svg { width: 20px; height: 20px; }
+  .card-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .tag {
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .tag-orange { background: var(--primary-soft); color: var(--primary); }
+  .tag-blue { background: var(--indigo-soft); color: var(--indigo); }
+  .tag-amber { background: var(--amber-soft); color: var(--amber); }
+  .tag-pink { background: var(--pink-soft); color: var(--pink); }
+  .tag-emerald { background: var(--emerald-soft); color: var(--emerald); }
+  .tag-sky { background: var(--sky-soft); color: var(--sky); }
+  .tag-violet { background: var(--violet-soft); color: var(--violet); }
+
+  .card p {
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.65;
+    margin-bottom: 8px;
+  }
+  .card strong { color: var(--text); font-weight: 600; }
+  .card .highlight { color: var(--primary); font-weight: 600; }
+  .card .meta-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .meta-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+    color: var(--text-2);
+    font-weight: 500;
+  }
+
+  /* Color variants for icons */
+  .icon-orange { background: var(--primary-soft); color: var(--primary); }
+  .icon-blue { background: var(--indigo-soft); color: var(--indigo); }
+  .icon-amber { background: var(--amber-soft); color: var(--amber); }
+  .icon-pink { background: var(--pink-soft); color: var(--pink); }
+  .icon-emerald { background: var(--emerald-soft); color: var(--emerald); }
+  .icon-sky { background: var(--sky-soft); color: var(--sky); }
+  .icon-violet { background: var(--violet-soft); color: var(--violet); }
+
+  /* Workflow */
+  .workflow {
+    background: linear-gradient(135deg, #fff5ec 0%, #fef3e2 100%);
+    border: 1px solid #f0d9b8;
+    border-radius: 18px;
+    padding: 36px 40px;
+  }
+  .workflow-title {
+    text-align: center;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: var(--text);
+  }
+  .workflow-title .bolt { color: var(--primary); }
+  .steps { max-width: 640px; margin: 0 auto; }
+  .step {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 9px 0;
+    font-size: 14.5px;
+    color: var(--text-2);
+  }
+  .step-num {
+    width: 22px; height: 22px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step strong { color: var(--text); font-weight: 700; }
+  .step .hl { color: var(--primary); font-weight: 600; }
+  .workflow-foot {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 14px;
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* Tool page (sidebar pages) */
+  .tool-head {
+    margin-bottom: 26px;
+  }
+  .tool-head h2 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .tool-head p { color: var(--muted); font-size: 14px; }
+
+  .tool-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 20px;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .panel h3 {
+    font-size: 14px; font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel h3 .count {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-2);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    color: var(--text);
+    font-family: inherit;
+    transition: all 0.15s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+  }
+  textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+  .field { margin-bottom: 14px; }
+
+  .field-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+
+  .opt-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .opt-btn {
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .opt-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .opt-btn.active {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .checkbox-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .checkbox-grid label {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 0;
+    font-size: 12px;
+    background: var(--surface-2);
+  }
+  .checkbox-grid input { display: none; }
+  .checkbox-grid input:checked + span {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .checkbox-grid label:has(input:checked) {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+  }
+
+  .panel-actions {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 6px;
+  }
+  .panel-actions .btn { flex: 1; justify-content: center; }
+  .panel-actions .meta {
+    font-size: 11.5px; color: var(--muted);
+  }
+
+  /* Results */
+  .result-list {
+    max-height: 540px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .result-list::-webkit-scrollbar { width: 6px; }
+  .result-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .result-item {
+    padding: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .result-item .ri-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .result-item .ri-num {
+    width: 20px; height: 20px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .result-item .ri-title {
+    font-size: 13.5px; font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+  .result-item .ri-actions {
+    display: flex; gap: 4px;
+  }
+  .icon-btn {
+    width: 24px; height: 24px;
+    border-radius: 5px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--bg-soft); color: var(--primary); }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .result-item .ri-body {
+    font-size: 12.5px; color: var(--text-2);
+    line-height: 1.7;
+    max-height: 130px;
+    overflow: hidden;
+    position: relative;
+  }
+  .result-item .ri-meta {
+    display: flex; gap: 12px;
+    margin-top: 8px;
+    font-size: 11px; color: var(--muted);
+  }
+  .result-item .ri-meta span { display: flex; align-items: center; gap: 3px; }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty svg {
+    width: 48px; height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+  .empty h4 { color: var(--text-2); font-weight: 600; margin-bottom: 4px; font-size: 14px; }
+  .empty p { font-size: 12.5px; }
+
+  /* Progress */
+  .progress-bar {
+    height: 8px;
+    background: var(--bg-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .progress-bar.show { display: block; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #f59e0b);
+    width: 0%;
+    transition: width .4s ease;
+    transition: width 0.3s;
+  }
+
+  /* 状态徽章 */
+  .status-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-left: 6px;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+  .status-pending { background: var(--bg-soft); color: var(--muted); border: 1px solid var(--border); }
+  .status-running { background: var(--amber-soft); color: var(--amber); border: 1px solid #fde68a; animation: pulse 1.5s infinite; }
+  .status-ok { background: var(--emerald-soft); color: var(--emerald); border: 1px solid #a7f3d0; }
+  .status-warn { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .status-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .api-status.status-demo { background: var(--bg-soft); color: var(--muted); border: 1px solid var(--border); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+
+  /* API key page */
+  .api-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .api-head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .api-head .logo {
+    width: 40px; height: 40px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+  }
+  .api-head .info { flex: 1; }
+  .api-head .name { font-size: 15px; font-weight: 700; }
+  .api-head .sub { font-size: 12px; color: var(--muted); }
+  .api-status {
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .status-on { background: var(--emerald-soft); color: var(--emerald); }
+  .status-off { background: var(--bg-soft); color: var(--muted); }
+
+  .key-input-row {
+    display: flex; gap: 8px;
+  }
+  .key-input-row input { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+
+  /* Tutorial */
+  .tut-list { display: grid; gap: 12px; }
+  .tut-item {
+    display: flex; gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 18px 22px;
+    transition: all 0.15s;
+  }
+  .tut-item:hover { border-color: var(--primary); transform: translateX(4px); }
+  .tut-num {
+    width: 28px; height: 28px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .tut-body h4 { font-size: 14.5px; font-weight: 600; margin-bottom: 3px; }
+  .tut-body p { font-size: 12.5px; color: var(--muted); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+    animation: toastIn 0.3s ease;
+  }
+  .toast svg { width: 16px; height: 16px; color: var(--emerald); }
+  @keyframes toastIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Voice indicator */
+  .voice {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 999px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-2);
+    box-shadow: var(--shadow);
+    z-index: 50;
+  }
+  .voice .pulse {
+    width: 8px; height: 8px;
+    background: var(--primary);
+    border-radius: 50%;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 1; }
+  }
+
+  /* Stat strip */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .stat .label { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+  .stat .val { font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat .val small { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .stat .delta { font-size: 11px; color: var(--emerald); font-weight: 600; margin-top: 2px; }
+
+  /* Image grid */
+  .img-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .img-cell {
+    aspect-ratio: 4/3;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .img-cell:hover { transform: scale(1.02); }
+  .img-cell .label {
+    position: absolute; bottom: 6px; left: 6px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  /* Generated images use procedural gradients */
+  .gen-img-1 { background: linear-gradient(135deg, #fbbf24 0%, #f97316 50%, #dc2626 100%); }
+  .gen-img-2 { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%); }
+  .gen-img-3 { background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 50%, #3b82f6 100%); }
+  .gen-img-4 { background: linear-gradient(135deg, #84cc16 0%, #22c55e 50%, #10b981 100%); }
+
+  /* Footer */
+  .footer {
+    margin-top: 60px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  @media (max-width: 960px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: relative; height: auto; }
+    .main { padding: 0 20px 40px; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .tool-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 30px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .voice { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">墨韵工坊</div>
+        <div class="brand-tag">MORUEN STUDIO</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">工作台</div>
+      <div class="nav-item" data-view="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        首页概览
+      </div>
+      <div class="nav-item" data-view="tutorial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        使用教程
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">内容生产</div>
+      <div class="nav-item" data-view="title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        一键标题
+      </div>
+      <div class="nav-item" data-view="original">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        批量原创
+        <span class="badge">HOT</span>
+      </div>
+      <div class="nav-item" data-view="rewrite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+        批量改写
+      </div>
+      <div class="nav-item" data-view="universal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
+        万能改写
+      </div>
+      <div class="nav-item" data-view="layout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        一键排版
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">系统</div>
+      <div class="nav-item" data-view="keys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        模型秘钥
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar">墨</div>
+      <div class="user-info">
+        <div class="user-name">墨韵工坊</div>
+        <div class="user-plan">内部工具 · 团队自用</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="crumbs">
+        <span>工作台</span>
+        <span>/</span>
+        <strong id="crumbTitle">首页概览</strong>
+      </div>
+      <div class="topbar-actions">
+        <label class="demo-toggle" title="开启后,所有生成用本地 mock 数据演示" style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--bg-soft);border:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--muted);">
+          <input type="checkbox" id="topbar-demo-switch" style="margin:0;cursor:pointer;">
+          <span>演示模式</span>
+        </label>
+        <div class="quota">
+          <span class="quota-dot"></span>
+          服务正常
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice indicator -->
+    <div class="voice">
+      <span class="pulse"></span>
+      智能体在线
+    </div>
+
+    <!-- HOME VIEW -->
+    <section class="view active" id="view-home">
+      <div class="hero">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          v2.6 全新发布
+        </div>
+        <h1>一站式 <span class="accent">新媒体内容工坊</span><br>从灵感到发布，5 分钟搞定</h1>
+        <p>批量原创 · 智能改写 · 自动排版 · 一键配图 · 深度降 AI 痕迹。新媒体人的生产力杠杆，让一个人顶一个团队。</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" onclick="switchView('original')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            立即开始创作
+          </button>
+          <button class="btn btn-ghost" onclick="switchView('tutorial')">观看教程</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat">
+          <div class="label">本月生成</div>
+          <div class="val">2,847 <small>篇</small></div>
+          <div class="delta">↑ 12.4%</div>
+        </div>
+        <div class="stat">
+          <div class="label">节省工时</div>
+          <div class="val">156 <small>小时</small></div>
+          <div class="delta">↑ 28.0%</div>
+        </div>
+        <div class="stat">
+          <div class="label">AI 检测通过</div>
+          <div class="val">99.2<small>%</small></div>
+          <div class="delta">↑ 0.6%</div>
+        </div>
+        <div class="stat">
+          <div class="label">账号矩阵</div>
+          <div class="val">12 <small>个</small></div>
+          <div class="delta">运营中</div>
+        </div>
+      </div>
+
+      <!-- New features -->
+      <div class="section">
+        <div class="section-head">
+          <h2>重磅新功能</h2>
+          <div class="underline"></div>
+          <p style="margin-top: 8px;">本季更新，让效率再上一个台阶</p>
+        </div>
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-icon icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 3 21 3 21 21 3 21 3 3"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+            </div>
+            <div class="card-title">批量排版 <span class="tag tag-blue">省时</span></div>
+            <p>纯文本秒变公众号精美排版。</p>
+            <p><strong>5 套风格</strong>随心换，字号行间距可调，所见即所得。</p>
+            <p>多篇文章一键批量排版，配图自动嵌入，<span class="highlight">一键复制</span>直接粘贴到公众号，<strong>排版 + 配图 + 降 AI 味一条龙</strong>。</p>
+            <div class="meta-row">
+              <span class="meta-pill">批量导出</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+            </div>
+            <div class="card-title">批量降 AI 味 <span class="tag tag-amber">核心</span></div>
+            <p><strong>四阶段</strong>深度去 AI 痕迹：</p>
+            <p>去模板 → 增口语 → 调句式 → 加温度。</p>
+            <p>原创 / 改写 / 排版三处独立按钮，随时调用。</p>
+            <p>多篇文章可批量降 AI 味，<strong>部分领域人工特征占比可达 100%</strong>。</p>
+            <div class="meta-row">
+              <span class="meta-pill">批量处理</span>
+              <span class="meta-pill">4 阶段深度</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-emerald" style="cursor:pointer;" onclick="switchView('rewrite')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            </div>
+            <div class="card-title" style="cursor:pointer;" onclick="switchView('rewrite')">批量改写 <span class="tag tag-emerald">1→N 篇</span></div>
+            <p><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。</p>
+            <p>支持链接抓取（公众号/头条/知乎）或直接粘贴原文，选好强度+改写逻辑一键产出多篇。</p>
+            <div class="meta-row">
+              <span class="meta-pill">1 → N 篇</span>
+              <span class="meta-pill">多角度</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-orange" style="cursor:pointer;" onclick="switchView('universal')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
+            </div>
+            <div class="card-title" style="cursor:pointer;" onclick="switchView('universal')">万能改写 <span class="tag" style="background:var(--amber-soft);color:#b45309;">单篇精细</span></div>
+            <p><strong>单篇精细处理</strong>，不批量生成多篇。</p>
+            <p>可单独调语气、控制长度、仅降 AI 味。适合已有 1 篇稿子,想精调成特定风格 / 长度 / 人味时用。</p>
+            <p style="font-size:12px;color:var(--muted);">和「批量改写」的区别:批量改写是 1 → N,万能改写是 1 → 1(精调)。</p>
+            <div class="meta-row">
+              <span class="meta-pill">单篇精调</span>
+              <span class="meta-pill">不扩写</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All tools (7 个工具的完整入口,后续加新工具都往这里加,避免遗漏) -->
+      <div class="section">
+        <div class="section-head">
+          <h2>全部工具</h2>
+          <div class="underline"></div>
+          <p style="margin-top: 8px;">7 个工具,覆盖从写标题到发布全流程</p>
+        </div>
+        <div class="grid-4" style="grid-template-columns:repeat(4,1fr);">
+          <div class="card" style="cursor:pointer;" onclick="switchView('title')">
+            <div class="card-icon icon-violet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <div class="card-title">① 一键标题 <span class="tag tag-violet">入口</span></div>
+            <p><strong>1-5 个参考标题 → 批量生成新标题</strong>。</p>
+            <p>约束词精确控方向,两段式 / 三段式可选,1-20 条。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('original')">
+            <div class="card-icon icon-pink">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="card-title">② 批量原创 <span class="tag tag-pink" style="background:var(--pink-soft);color:#be185d;">HOT</span></div>
+            <p><strong>主题 → 长文批量产出</strong>。</p>
+            <p>13 大领域,300-2000 字精确控制,1-10 篇/主题。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('rewrite')">
+            <div class="card-icon icon-emerald">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            </div>
+            <div class="card-title">③ 批量改写 <span class="tag tag-emerald">1→N</span></div>
+            <p><strong>1 篇原文 → N 个不同角度改写</strong>。</p>
+            <p>链接抓取 / 粘贴原文,轻度/中度/深度可选。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('universal')">
+            <div class="card-icon icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
+            </div>
+            <div class="card-title">④ 万能改写 <span class="tag" style="background:var(--amber-soft);color:#b45309;">单篇精细</span></div>
+            <p><strong>1 篇稿子精调成特定风格/长度/人味</strong>。</p>
+            <p>可只降 AI 味不扩写。1 → 1(精调),不出多篇。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('layout')">
+            <div class="card-icon icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 3 21 3 21 21 3 21 3 3"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+            </div>
+            <div class="card-title">⑤ 一键排版 <span class="tag tag-blue">省时</span></div>
+            <p><strong>纯文本 → 公众号精美排版</strong>。</p>
+            <p>5 套风格,字号行间距可调,一键复制粘贴。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('keys')">
+            <div class="card-icon icon-emerald">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+            <div class="card-title">⑥ 模型秘钥 <span class="tag tag-emerald">配置</span></div>
+            <p><strong>4 家模型:Claude / GPT-4 / 文心 / DeepSeek</strong>。</p>
+            <p>本地加密存储(AES-256-GCM),可设默认供应商。</p>
+          </div>
+
+          <div class="card" style="cursor:pointer;" onclick="switchView('tutorial')">
+            <div class="card-icon icon-sky">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="card-title">⑦ 使用教程 <span class="tag tag-sky">必读</span></div>
+            <p><strong>从入门到精通,6 节</strong>。</p>
+            <p>第 1 节建议先看,讲清楚 7 个工具的配合用法。</p>
+          </div>
+
+          <div class="card" style="background:linear-gradient(135deg,var(--bg-soft),#fff);border-style:dashed;">
+            <div class="card-icon" style="background:var(--bg);color:var(--muted);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="card-title" style="color:var(--muted);">📌 不知道怎么用?</div>
+            <p>先看 <strong>⑦ 使用教程</strong>,再点对应的工具卡片。</p>
+            <p style="font-size:12px;color:var(--muted);">卡上的 ① ② ③ 数字对应 sidebar 入口的顺序。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core capabilities -->
+      <div class="section">
+        <div class="section-head">
+          <h2>核心能力</h2>
+          <div class="underline"></div>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-icon icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+            </div>
+            <div class="card-title">极致产出效率</div>
+            <p>1 个标题 → 最高 <strong>10 篇</strong>文章。单次任务最多 <strong>120 篇</strong>批量生成。多线程并发，<span class="highlight">10 分钟搞定一周内容</span>。</p>
+            <div class="meta-row">
+              <span class="tag tag-blue">多线程并发</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-pink">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/></svg>
+            </div>
+            <div class="card-title">写文顶尖模型</div>
+            <p>基于 <strong>克劳德模型</strong> 深度定制。写作逻辑、文采及原创度远超常规模型。双供应商自由切换，<span class="highlight">按量计费极低成本</span>。</p>
+            <div class="meta-row">
+              <span class="tag tag-pink">价格亲民</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="card-title">灵活参数化控制</div>
+            <p><strong>300-2000 字</strong>精确控制。自定义提示词完美适配 <strong>13 大垂直领域</strong>。文章数量、降 AI 强度、改写角度、配图张数（1-10 张）随心调节。</p>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-emerald">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="card-title">本地运行 · 安全可靠</div>
+            <p>算力自行充值，<span class="highlight">低至 0.01 元一篇</span>文章，透明可控，<strong>不使用不扣费不过期</strong>。密钥本地存储，不上传服务器，运营成本降低 90%。</p>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-sky">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="card-title">智能配图 · 安全合规</div>
+            <p>自动过滤水印图、版权风险图（视觉中国等直接封禁）、游戏动漫图、低质量小图。裁剪底部水印区域，确保 <strong>4:3 比例</strong>适配公众号。AI 生图完全原创无版权风险。</p>
+            <div class="meta-row">
+              <span class="tag tag-sky">自动过滤</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon icon-violet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <div class="card-title">批量写标题 + 双面板</div>
+            <p><strong>1-5 个参考标题</strong> → AI 举一反三批量生成。约束词精确控方向，两段式 / 三段式可选，每次 1-20 条。<strong>左右双面板</strong>同时跑，一键导入批量原创，标题→文章无缝衔接。</p>
+            <div class="meta-row">
+              <span class="tag tag-violet">双面板</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflow -->
+      <div class="section">
+        <div class="workflow">
+          <div class="workflow-title">⚡ <span class="bolt">一条龙工作流</span></div>
+          <div class="steps">
+            <div class="step"><span class="step-num">1</span><div>输入标题 → <strong>批量写文</strong>（120 篇并发）</div></div>
+            <div class="step"><span class="step-num">2</span><div>不满意 → <strong>批量改写</strong>（链接识别 + 多维改写）</div></div>
+            <div class="step"><span class="step-num">3</span><div>选中文章 → <strong>批量排版</strong>（5 套精美样式）</div></div>
+            <div class="step"><span class="step-num">4</span><div>排版后 → <strong>批量降 AI 味</strong>（朱雀算法深度处理）</div></div>
+            <div class="step"><span class="step-num">5</span><div>降完 → <strong>一键配图</strong>（AI 生图 / 网络搜图自由选）</div></div>
+            <div class="step"><span class="step-num">6</span><div>完稿 → <strong>一键复制到公众号</strong>，直接发布！</div></div>
+          </div>
+          <div class="workflow-foot">从灵感到发布，5 分钟全搞定。</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>© 2025 墨韵工坊 · 新媒体一站式生成工具</div>
+        <div>本地运行 · 隐私优先 · 用量透明</div>
+      </div>
+    </section>
+
+    <!-- TOOL: ONE-CLICK TITLE -->
+    <section class="view" id="view-title">
+      <div class="tool-head">
+        <h2>一键标题生成</h2>
+        <p>输入 1-5 个参考标题，AI 举一反三批量生成爆款标题，支持 13 大垂直领域</p>
+      </div>
+      <div class="tool-grid">
+        <div class="panel">
+          <h3>📝 输入配置</h3>
+          <div class="field">
+            <label>参考标题（每行一个，最多 5 个）<span id="t-refs-count" style="color:var(--muted);font-weight:normal;font-size:12px;margin-left:6px;"></span></label>
+            <textarea id="t-refs" rows="5" placeholder="例如：&#10;30岁才明白的三个理财真相&#10;普通人如何靠副业月入过万&#10;..."></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>生成数量</label>
+              <input type="number" id="t-count" value="10" min="1" max="20">
+            </div>
+            <div class="field">
+              <label>领域</label>
+              <select id="t-domain">
+                <option>理财</option>
+                <option>职场</option>
+                <option>情感</option>
+                <option>育儿</option>
+                <option>健康</option>
+                <option>科技</option>
+                <option>美食</option>
+                <option>旅行</option>
+                <option>历史</option>
+                <option>体育</option>
+                <option>娱乐</option>
+                <option>汽车</option>
+                <option>军事</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>风格</label>
+            <div class="opt-grid" data-group="t-style">
+              <button class="opt-btn active" data-val="悬念">悬念</button>
+              <button class="opt-btn" data-val="数字">数字</button>
+              <button class="opt-btn" data-val="对比">对比</button>
+              <button class="opt-btn" data-val="反问">反问</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>句式</label>
+            <div class="opt-grid" data-group="t-format">
+              <button class="opt-btn active" data-val="两段式">两段式</button>
+              <button class="opt-btn" data-val="三段式">三段式</button>
+              <button class="opt-btn" data-val="短句">短句</button>
+              <button class="opt-btn" data-val="长句">长句</button>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" onclick="generateTitles()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              立即生成
+            </button>
+            <span class="meta">预计耗时 3 秒</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>✨ 生成结果 <span class="count" id="t-result-count">0 条</span></h3>
+          <div class="progress-bar" id="t-progress"><div class="progress-fill"></div></div>
+          <div id="t-bulk-bar" style="display:none;margin:8px 0;padding:6px 10px;background:var(--bg-soft);border-radius:6px;display:none;align-items:center;gap:10px;font-size:13px;">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="t-pick-all" style="cursor:pointer;"> 全选</label>
+            <span id="t-picked-count" style="color:var(--muted);">已选 0 条</span>
+            <button class="btn btn-primary btn-sm" id="t-bulk-import">📥 批量导入所选到「原创」</button>
+          </div>
+          <div class="result-list" id="t-results">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <h4>等待开始</h4>
+              <p>填写左侧表单后点击"立即生成"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOL: BATCH ORIGINAL -->
+    <section class="view" id="view-original">
+      <div class="tool-head">
+        <h2>批量原创生成</h2>
+        <p>一个标题最多 10 篇，多线程并发 120 篇一次跑完。字数、风格、领域全可调</p>
+      </div>
+      <div class="tool-grid">
+        <div class="panel">
+          <h3>📝 输入配置</h3>
+          <div class="field">
+            <label>主题 / 标题（每行一个，最多 10 个）<span id="o-topics-count" style="color:var(--muted);font-weight:normal;font-size:12px;margin-left:6px;"></span></label>
+            <textarea id="o-topics" rows="4" placeholder="例如：&#10;30岁才明白的三个理财真相&#10;普通人如何靠副业月入过万&#10;..."></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>每主题生成篇数</label>
+              <input type="number" id="o-per" value="3" min="1" max="10">
+            </div>
+            <div class="field">
+              <label>字数(目标范围)</label>
+              <select id="o-length">
+                <option value="500">500 字(约 450-580)</option>
+                <option value="800" selected>800 字(约 680-920)</option>
+                <option value="1200">1200 字(约 1000-1400)</option>
+                <option value="1500">1500 字(约 1250-1750)</option>
+                <option value="2000">2000 字(约 1700-2200)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>领域</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" value="理财" checked><span>理财</span></label>
+              <label><input type="checkbox" value="职场"><span>职场</span></label>
+              <label><input type="checkbox" value="情感"><span>情感</span></label>
+              <label><input type="checkbox" value="育儿"><span>育儿</span></label>
+              <label><input type="checkbox" value="健康"><span>健康</span></label>
+              <label><input type="checkbox" value="科技"><span>科技</span></label>
+              <label><input type="checkbox" value="美食"><span>美食</span></label>
+              <label><input type="checkbox" value="旅行"><span>旅行</span></label>
+              <label><input type="checkbox" value="历史"><span>历史</span></label>
+              <label><input type="checkbox" value="体育"><span>体育</span></label>
+              <label><input type="checkbox" value="娱乐"><span>娱乐</span></label>
+              <label><input type="checkbox" value="汽车"><span>汽车</span></label>
+              <label><input type="checkbox" value="军事"><span>军事</span></label>
+            </div>
+          </div>
+          <div class="field">
+            <label>风格</label>
+            <div class="opt-grid" data-group="o-style">
+              <button class="opt-btn active" data-val="干货">干货</button>
+              <button class="opt-btn" data-val="故事">故事</button>
+              <button class="opt-btn" data-val="观点">观点</button>
+              <button class="opt-btn" data-val="科普">科普</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>附加选项</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" id="o-images" checked><span>自动配图</span></label>
+              <label><input type="checkbox" id="o-ai-off" checked><span>降 AI 味</span></label>
+              <label><input type="checkbox" id="o-format"><span>顺手排版</span></label>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" onclick="generateOriginals()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              批量生成
+            </button>
+            <span class="meta" id="o-cost">预计消耗 0.15 元</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>📚 生成结果 <span class="count" id="o-result-count">0 篇</span></h3>
+          <div class="progress-bar" id="o-progress"><div class="progress-fill"></div></div>
+          <div class="result-list" id="o-results">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <h4>等待开始</h4>
+              <p>填写左侧表单后点击"批量生成"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOL: BATCH REWRITE -->
+    <section class="view" id="view-rewrite">
+      <div class="tool-head">
+        <h2>批量改写 <span class="tag tag-emerald" style="font-size:12px;padding:1px 8px;background:var(--emerald-soft);color:var(--emerald);border-radius:999px;margin-left:8px;vertical-align:middle;">1 → N 篇</span></h2>
+        <p><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。支持链接抓取（公众号 / 头条 / 知乎）或直接粘贴原文。</p>
+      </div>
+
+      <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 0 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:13px;line-height:1.6;">
+        <div>
+          <div style="font-weight:600;color:var(--emerald);margin-bottom:4px;">📦 批量改写（1 → N 篇）</div>
+          <div style="color:var(--muted);"><strong>用途</strong>：1 篇原文变 N 篇不同角度版本,批量产出。</div>
+          <div style="color:var(--muted);"><strong>适合</strong>：看到爆款想"换皮"出多篇;有 1 个选题要铺量。</div>
+        </div>
+        <div>
+          <div style="font-weight:600;color:#b45309;margin-bottom:4px;">✍️ 万能改写（单篇精细）</div>
+          <div style="color:var(--muted);"><strong>用途</strong>：1 篇稿子精调成特定风格/长度/人味,不出多篇。</div>
+          <div style="color:var(--muted);"><strong>适合</strong>：自己写了 1 篇想改改口吻;只想降 AI 味不想扩写。</div>
+        </div>
+      </div>
+      <div class="tool-grid">
+        <div class="panel">
+          <h3>🔗 来源输入</h3>
+          <div class="field">
+            <label>原文来源</label>
+            <div style="background:var(--amber-soft);border:1px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12.5px;margin-bottom:10px;line-height:1.55;">
+              <strong>📌 公众号/头条/知乎反爬严,推荐用「直接粘贴原文」</strong>。粘贴链接模式只接受 <code style="background:#fff;padding:1px 6px;border-radius:3px;font-family:monospace">http(s)://</code> 开头的真实链接,粘原文会被拦截。
+            </div>
+            <div class="opt-grid" style="grid-template-columns: 1fr 1fr; max-width: 360px; margin-bottom: 12px;">
+              <button class="opt-btn" data-r-mode="url">🔗 粘贴链接</button>
+              <button class="opt-btn active" data-r-mode="text">📋 直接粘贴原文</button>
+            </div>
+            <div data-r-pane="url" style="display:none;">
+              <textarea id="r-urls" placeholder="每行一个链接,例如:&#10;https://mp.weixin.qq.com/s/xxxxx&#10;https://www.toutiao.com/article/xxxxx"></textarea>
+              <div id="r-urls-hint" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;"></div>
+            </div>
+            <div data-r-pane="text">
+              <div style="background:var(--amber-soft);border:1px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12.5px;margin-bottom:8px;line-height:1.55;">
+                <strong>📌 单篇直接粘贴即可。</strong>想一次粘贴多篇,用 <code style="background:#fff;padding:1px 6px;border-radius:3px;font-family:monospace">---</code> 隔开(单独一行,前后留空行)。<br>
+                <span style="opacity:.85">系统按 <code style="background:#fff;padding:1px 6px;border-radius:3px;font-family:monospace">---</code> 拆分成多来源,每篇改写 <em>改写篇数</em> 次,所以"1 篇原文 × 3 改写"= 3 篇结果,"2 篇原文 × 3"= 6 篇,以此类推。</span>
+              </div>
+              <textarea id="r-text" style="min-height:260px;" placeholder="把公众号/头条/知乎的原文粘贴到这里
+
+支持一次粘贴多篇(用 --- 隔开):
+第一篇标题...
+第一篇正文...
+---
+第二篇标题...
+第二篇正文..."></textarea>
+              <div id="r-text-hint" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;"></div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>改写篇数</label>
+              <input type="number" id="r-count" value="3" min="1" max="10">
+            </div>
+            <div class="field">
+              <label>改写强度</label>
+              <select id="r-strength">
+                <option value="轻度">轻度-保留原文结构</option>
+                <option value="中度" selected>中度-推荐</option>
+                <option value="深度">深度-彻底重写</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>改写逻辑</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" class="r-logic" value="同角度换词" checked><span>同角度换词</span></label>
+              <label><input type="checkbox" class="r-logic" value="不同角度重写" checked><span>不同角度重写</span></label>
+              <label><input type="checkbox" class="r-logic" value="扩写加案例"><span>扩写加案例</span></label>
+              <label><input type="checkbox" class="r-logic" value="缩写精炼"><span>缩写精炼</span></label>
+              <label><input type="checkbox" class="r-logic" value="对话化改写"><span>对话化改写</span></label>
+              <label><input type="checkbox" class="r-logic" value="故事化包装"><span>故事化包装</span></label>
+            </div>
+          </div>
+          <div class="field">
+            <label>目标字数</label>
+            <select id="r-length">
+              <option value="保持原长度">保持原长度</option>
+              <option value="500-800">500-800 字</option>
+              <option value="800-1200" selected>800-1200 字</option>
+              <option value="1200-1500">1200-1500 字</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" onclick="rewriteBatch()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              开始改写
+            </button>
+            <span class="meta">支持一键导入批量原创</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>📝 改写结果 <span class="count" id="r-result-count">0 篇</span></h3>
+          <div class="progress-bar" id="r-progress"><div class="progress-fill"></div></div>
+          <div class="result-list" id="r-results">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <h4>等待开始</h4>
+              <p>粘贴原文链接，点击"开始改写"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOL: UNIVERSAL REWRITE -->
+    <section class="view" id="view-universal">
+      <div class="tool-head">
+        <h2>万能改写 <span class="tag" style="font-size:12px;padding:1px 8px;background:var(--amber-soft);color:#b45309;border-radius:999px;margin-left:8px;vertical-align:middle;">单篇精细</span></h2>
+        <p><strong>单篇精细处理</strong>：可单独调语气、控制长度、仅降 AI 味，<strong>不批量生成多篇</strong>。适合已经有一篇稿子,想精调成特定风格 / 长度 / 人味时用。</p>
+      </div>
+
+      <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 0 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:13px;line-height:1.6;">
+        <div>
+          <div style="font-weight:600;color:var(--emerald);margin-bottom:4px;">📦 批量改写（1 → N 篇）</div>
+          <div style="color:var(--muted);"><strong>用途</strong>：1 篇原文变 N 篇不同角度版本,批量产出。</div>
+          <div style="color:var(--muted);"><strong>适合</strong>：看到爆款想"换皮"出多篇;有 1 个选题要铺量。</div>
+        </div>
+        <div>
+          <div style="font-weight:600;color:#b45309;margin-bottom:4px;">✍️ 万能改写（单篇精细）</div>
+          <div style="color:var(--muted);"><strong>用途</strong>：1 篇稿子精调成特定风格/长度/人味,不出多篇。</div>
+          <div style="color:var(--muted);"><strong>适合</strong>：自己写了 1 篇想改改口吻;只想降 AI 味不想扩写。</div>
+        </div>
+      </div>
+      <div class="tool-grid">
+        <div class="panel">
+          <h3>✍️ 原文输入</h3>
+          <div class="field">
+            <label>原文内容（支持任意长度）</label>
+            <textarea id="u-text" style="min-height: 240px;" placeholder="将需要改写的文章粘贴到这里..."></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>改写强度</label>
+              <select id="u-strength">
+                <option>轻度</option>
+                <option selected>中度</option>
+                <option>深度</option>
+                <option>彻底重写</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>目标读者</label>
+              <select id="u-audience">
+                <option>通用</option>
+                <option>年轻人</option>
+                <option>职场人</option>
+                <option>宝妈</option>
+                <option>中老年</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>处理选项</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" id="u-ai-off" checked><span>降 AI 味（4 阶段）</span></label>
+              <label><input type="checkbox" id="u-keywords" checked><span>保留核心关键词</span></label>
+              <label><input type="checkbox" id="u-tone"><span>调节语气</span></label>
+              <label><input type="checkbox" id="u-length"><span>控制长度</span></label>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" onclick="universalRewrite()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
+              智能改写
+            </button>
+            <button class="btn btn-ghost" onclick="onlyDeAI()">仅降 AI 味</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>✨ 改写结果 <span class="count" id="u-result-count">0 篇</span></h3>
+          <div class="progress-bar" id="u-progress"><div class="progress-fill"></div></div>
+          <div class="result-list" id="u-results">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <h4>等待开始</h4>
+              <p>粘贴原文，选择处理选项</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOL: ONE-CLICK LAYOUT -->
+    <section class="view" id="view-layout">
+      <div class="tool-head">
+        <h2>一键排版</h2>
+        <p>纯文本秒变公众号精美排版。5 套风格随心换，配图自动嵌入，所见即所得</p>
+      </div>
+      <div class="tool-grid">
+        <div class="panel">
+          <h3>🎨 排版设置</h3>
+          <div class="field">
+            <label>原文内容</label>
+            <textarea id="l-text" style="min-height: 200px;" placeholder="粘贴需要排版的纯文本..."></textarea>
+          </div>
+          <div class="field">
+            <label>选择风格</label>
+            <div class="opt-grid" data-group="l-style" style="grid-template-columns: repeat(5, 1fr);">
+              <button class="opt-btn active" data-val="简约">简约</button>
+              <button class="opt-btn" data-val="文艺">文艺</button>
+              <button class="opt-btn" data-val="商务">商务</button>
+              <button class="opt-btn" data-val="清新">清新</button>
+              <button class="opt-btn" data-val="经典">经典</button>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>正文字号</label>
+              <select id="l-size">
+                <option value="14px">14px 紧凑</option>
+                <option value="15px" selected>15px 推荐</option>
+                <option value="16px">16px 易读</option>
+                <option value="17px">17px 舒适</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>行间距</label>
+              <select id="l-line">
+                <option value="1.5">1.5 紧凑</option>
+                <option value="1.75" selected>1.75 推荐</option>
+                <option value="2.0">2.0 宽松</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>附加处理</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" id="l-images" checked><span>自动配图</span></label>
+              <label><input type="checkbox" id="l-emoji"><span>添加表情</span></label>
+              <label><input type="checkbox" id="l-quote"><span>重点引用</span></label>
+              <label><input type="checkbox" id="l-ai-off"><span>降 AI 味</span></label>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" onclick="layoutArticle()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              排版并复制
+            </button>
+            <button class="btn btn-ghost" onclick="previewLayout()">预览</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>👀 排版预览 <span class="count">所见即所得</span></h3>
+          <div class="result-list" id="l-results">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              <h4>等待开始</h4>
+              <p>输入原文并选择风格后点击"排版"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOL: MODEL KEYS -->
+    <section class="view" id="view-keys">
+      <div class="tool-head">
+        <h2>模型秘钥管理</h2>
+        <p>本地存储你的 API 密钥，永不上传服务器。支持多供应商自由切换，按量计费</p>
+      </div>
+
+      <!-- 4 张秘钥卡片由 JS 动态从 /api/keys 渲染 -->
+
+      <div style="margin-top: 20px; padding: 14px 18px; background: var(--emerald-soft); border: 1px solid #a7f3d0; border-radius: 10px; color: var(--emerald); font-size: 12.5px; display: flex; align-items: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        所有密钥均使用 AES-256 加密后存储在本地，浏览器外不可读。
+      </div>
+
+      <div style="margin-top: 14px; padding: 14px 18px; background: var(--amber-soft); border: 1px solid #fde68a; border-radius: 10px; color: #92400e; font-size: 12.5px; display: flex; align-items: center; gap: 10px; justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <div>
+            <div style="font-weight:600;">演示模式(无 API Key 也能体验 UI 流程)</div>
+            <div style="opacity:.8;">开启后,所有"生成"会用本地 mock 数据演示,适合先看效果再决定是否接入真实模型。</div>
+          </div>
+        </div>
+        <label class="switch" style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;">
+          <input type="checkbox" id="demo-mode-switch" style="opacity:0;width:0;height:0;">
+          <span class="switch-track" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:24px;transition:.3s;"></span>
+          <span class="switch-thumb" style="position:absolute;height:18px;width:18px;left:3px;top:3px;background:white;border-radius:50%;transition:.3s;"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- TOOL: TUTORIAL -->
+    <section class="view" id="view-tutorial">
+      <div class="tool-head">
+        <h2>使用教程</h2>
+        <p>5 分钟掌握墨韵工坊的全部能力，从 0 到 1 搭建你的内容生产流水线</p>
+      </div>
+      <div class="tut-list">
+        <div class="tut-item">
+          <div class="tut-num">1</div>
+          <div class="tut-body">
+            <h4>配置你的 API 密钥</h4>
+            <p>进入「模型秘钥」，填入至少一个模型提供商的 API Key。所有密钥本地加密存储，不上传服务器。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">2</div>
+          <div class="tut-body">
+            <h4>用「一键标题」生成爆款标题</h4>
+            <p>粘贴 1-5 个参考标题，选择领域和风格，AI 举一反三生成 1-20 条候选标题。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">3</div>
+          <div class="tut-body">
+            <h4>用「批量原创」一鱼多吃</h4>
+            <p>把满意的标题导入「批量原创」，设置每主题 3-5 篇、字数 800-1500 字，120 篇并发跑完。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">4</div>
+          <div class="tut-body">
+            <h4>不满意？用「批量改写」换角度重写</h4>
+            <p>直接粘贴爆款链接，AI 抓取原文后多角度改写。也可以用「万能改写」处理自己已有的文章。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">5</div>
+          <div class="tut-body">
+            <h4>用「一键排版」直接生成公众号格式</h4>
+            <p>5 套风格随心选，AI 自动配图、行间距字号都可调。一键复制粘贴到公众号编辑器。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">6</div>
+          <div class="tut-body">
+            <h4>担心 AI 痕迹？用「降 AI 味」四阶段处理</h4>
+            <p>去模板 → 增口语 → 调句式 → 加温度。朱雀 AI 检测平台验证，部分领域人工特征占比可达 100%。</p>
+          </div>
+        </div>
+        <div class="tut-item">
+          <div class="tut-num">7</div>
+          <div class="tut-body">
+            <h4>一条龙工作流：标题 → 原创 → 改写 → 排版 → 降 AI → 配图 → 发布</h4>
+            <p>所有功能在右侧边栏一键切换，每一步结果可以无缝导入下一步，5 分钟搞定一周内容。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+
+
+
+
+
+
+
+
+<script type="module" src="assets/app.js"></script>
+
+</body>
+</html>
