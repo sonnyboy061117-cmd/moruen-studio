@@ -1,6 +1,6 @@
 // 墨韵工坊 · 批量任务路由
 import { Router } from 'express';
-import { runBatchOriginal, runBatchRewrite, getTask, listTasks, ITEM_STATUS } from '../lib/tasks.js';
+import { runBatchOriginal, runBatchRewrite, getTask, listTasks, cancelTask, ITEM_STATUS } from '../lib/tasks.js';
 import { config } from '../lib/config.js';
 import { isConfigured } from '../lib/keys.js';
 
@@ -52,6 +52,16 @@ router.get('/tasks/:id', (req, res) => {
 // 列出最近任务
 router.get('/tasks', (req, res) => {
   res.json({ tasks: listTasks() });
+});
+
+// 取消任务
+router.post('/tasks/:id/cancel', (req, res) => {
+  const result = cancelTask(req.params.id, req.body.reason);
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(400).json(result);
+  }
 });
 
 router.get('/status-enum', (req, res) => {

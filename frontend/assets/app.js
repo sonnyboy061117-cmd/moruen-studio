@@ -319,7 +319,11 @@ async function restoreActiveTasks() {
       const t = await api.task(taskId);
       if (!t) { clearActiveTask(type); continue; }
       const total = t.total || t.items.length;
-      if (t.status === 'done') { clearActiveTask(type); continue; }
+      // 已完成或已取消的任务不再恢复
+      if (t.status === 'done' || t.status === 'cancelled') {
+        clearActiveTask(type);
+        continue;
+      }
       // 续上 poller
       if (type === 'original') {
         currentOriginalTask = t;
@@ -328,14 +332,14 @@ async function restoreActiveTasks() {
         if (originalPoller) originalPoller.stop();
         originalPoller = new TaskPoller(taskId, tt => {
           renderTaskItems(tt, 'o', total, { showSource: false });
-          if (tt.status === 'done') clearActiveTask('original');
+          if (tt.status === 'done' || tt.status === 'cancelled') clearActiveTask('original');
         });
         originalPoller.start(1500);
         showActiveTaskBanner('original', total, t => {
           if (originalPoller) originalPoller.stop();
           originalPoller = new TaskPoller(t.id, tt => {
             renderTaskItems(tt, 'o', total, { showSource: false });
-            if (tt.status === 'done') clearActiveTask('original');
+            if (tt.status === 'done' || tt.status === 'cancelled') clearActiveTask('original');
           });
           originalPoller.start(1500);
           switchView('original');
@@ -347,14 +351,14 @@ async function restoreActiveTasks() {
         if (rewritePoller) rewritePoller.stop();
         rewritePoller = new TaskPoller(taskId, tt => {
           renderTaskItems(tt, 'r', total, { showSource: false });
-          if (tt.status === 'done') clearActiveTask('rewrite');
+          if (tt.status === 'done' || tt.status === 'cancelled') clearActiveTask('rewrite');
         });
         rewritePoller.start(1500);
         showActiveTaskBanner('rewrite', total, t => {
           if (rewritePoller) rewritePoller.stop();
           rewritePoller = new TaskPoller(t.id, tt => {
             renderTaskItems(tt, 'r', total, { showSource: false });
-            if (tt.status === 'done') clearActiveTask('rewrite');
+            if (tt.status === 'done' || tt.status === 'cancelled') clearActiveTask('rewrite');
           });
           rewritePoller.start(1500);
           switchView('rewrite');
@@ -824,7 +828,7 @@ async function generateOriginals() {
   try {
     const r = await api.batchOriginal({
       topics, perTopic: per, length, domain, style, withImages, withAIOff, withFormat,
-      provider: PROVIDER_DEFAULT, concurrency: 8, demo: isDemo()
+      provider: PROVIDER_DEFAULT, concurrency: 16, demo: isDemo()
     });
     currentOriginalTask = r.task;
     // 持久化 taskId(刷新后能恢复进度)
@@ -934,10 +938,22 @@ window.rewriteBatch = rewriteBatch;
 function renderTaskItems(task, prefix, total, { showSource }) {
   const resultEl = document.getElementById(prefix + '-results');
   const countEl = document.getElementById(prefix + '-result-count');
+  const cancelBtn = document.getElementById(prefix + '-cancel-btn');
+
+  // 控制取消按钮显示/隐藏
+  if (cancelBtn) {
+    if (task.status === 'running') {
+      cancelBtn.style.display = 'inline-block';
+      cancelBtn.onclick = () => cancelTaskById(task.id, prefix);
+    } else {
+      cancelBtn.style.display = 'none';
+    }
+  }
+
   // 进度条(在 resultEl 外面,先单独处理,这样即使 resultEl 不存在也能 show)
   const bar = document.getElementById(prefix + '-progress');
   if (bar) {
-    if (task.status === 'done') bar.classList.remove('show');
+    if (task.status === 'done' || task.status === 'cancelled') bar.classList.remove('show');
     else bar.classList.add('show');
   }
   // 如果 resultEl 存在,确保它有"正在处理"占位(避免显示陈旧的"任务已提交")
@@ -1017,18 +1033,24 @@ function renderTaskItems(task, prefix, total, { showSource }) {
   // 缓存当前 items,供事件委托查
   resultEl._lastItems = items;
 
-  resultEl.innerHTML = items.map((it, idx) => {
+  // 只在需要时才重新渲染（避免频繁跳动）
+  const currentHTML = resultEl.innerHTML;
+  const newHTML = items.map((it, idx) => {
     const title = it.title || (it.source ? it.source.slice(0, 30) + '…' : `篇 ${idx + 1}`);
     const body = it.body || it.error || '';
     const source = showSource && it.source ? `<span>🔗 ${it.source.slice(0, 36)}…</span>` : '';
     const scoreBadge = it.score != null ? `<span>🎯 AI 味 ${it.score}%</span>` : '';
     const isLong = body && body.length > 300;
+
+    // 美化文章内容：段落分隔
+    const formattedBody = body ? body.split('\n').filter(p => p.trim()).map(p => `<p style="margin-bottom:12px;line-height:1.8;">${escape(p.trim())}</p>`).join('') : '';
+
     return `<div class="result-item">
       <div class="result-num">${idx + 1}</div>
       <div class="result-content">
         <div class="result-title">${escape(title)} ${statusBadge(it.status)}</div>
-        ${body ? `<div class="result-body" data-collapsed="${isLong ? '1' : '0'}" style="${isLong ? 'max-height:140px;overflow:hidden;mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);' : ''}">${escape(body)}</div>
-                    ${isLong ? `<button class="btn btn-ghost btn-sm" data-act="expand" style="margin-top:-4px;padding:2px 10px;font-size:12px;">展开全文 (${body.length} 字) ↓</button>` : ''}` : ''}
+        ${body ? `<div class="result-body" data-collapsed="${isLong ? '1' : '0'}" style="${isLong ? 'max-height:140px;overflow:hidden;mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);' : ''}">${formattedBody}</div>
+                    ${isLong ? `<button class="btn btn-ghost btn-sm" data-act="expand" style="margin-top:8px;padding:2px 10px;font-size:12px;">展开全文 (${body.length} 字) ↓</button>` : ''}` : ''}
         <div class="result-meta">${source} ${scoreBadge} ${it.error ? `<span style="color:var(--primary);">✗ ${escape(it.error)}</span>` : ''}</div>
         ${it.body ? `<div class="result-actions">
           <button class="btn btn-ghost btn-sm" data-act="copy">复制</button>
@@ -1037,6 +1059,11 @@ function renderTaskItems(task, prefix, total, { showSource }) {
       </div>
     </div>`;
   }).join('');
+
+  // 只有内容真正改变时才更新DOM，减少跳动
+  if (currentHTML !== newHTML) {
+    resultEl.innerHTML = newHTML;
+  }
 
   if (task.status === 'done') hideProgress(prefix + '-progress');
 }
@@ -1237,9 +1264,10 @@ async function init() {
   document.querySelectorAll('.nav-item[data-view]').forEach(el => {
     el.addEventListener('click', () => switchView(el.dataset.view));
   });
+
+  // 先不切换页面，等 restoreActiveTasks 执行完
   const m = location.hash.match(/#\/(\w+)/);
-  if (m && document.getElementById('view-' + m[1])) switchView(m[1]);
-  else switchView('home');
+  const initialView = (m && document.getElementById('view-' + m[1])) ? m[1] : 'home';
 
   // 演示模式开关绑定(顶栏 + 秘钥页都同步)
   const syncDemo = (on, src) => {
@@ -1359,14 +1387,14 @@ async function init() {
     });
   }
   if (tRefsCount) updateTRefs();
-  // 任何表单字段改了都重置旧结果(防误导)
-  const tCountInput = document.getElementById('t-count');
-  if (tCountInput) tCountInput.addEventListener('input', resetTResults);
-  const tDomainInput = document.getElementById('t-domain');
-  if (tDomainInput) tDomainInput.addEventListener('change', resetTResults);
-  document.querySelectorAll('[data-group="t-style"] .opt-btn, [data-group="t-format"] .opt-btn').forEach(b => {
-    b.addEventListener('click', resetTResults);
-  });
+  // 注释掉：修改表单参数时不再清空已生成的结果
+  // const tCountInput = document.getElementById('t-count');
+  // if (tCountInput) tCountInput.addEventListener('input', resetTResults);
+  // const tDomainInput = document.getElementById('t-domain');
+  // if (tDomainInput) tDomainInput.addEventListener('change', resetTResults);
+  // document.querySelectorAll('[data-group="t-style"] .opt-btn, [data-group="t-format"] .opt-btn').forEach(b => {
+  //   b.addEventListener('click', resetTResults);
+  // });
 
   // 一键标题: 全选 + 批量导入
   const tPickAll = document.getElementById('t-pick-all');
@@ -1383,6 +1411,14 @@ async function init() {
       .filter(Boolean);
     importTitlesToOriginal(picked);
   });
+
+  // 恢复活动任务(刷新后自动恢复进度)
+  await restoreActiveTasks();
+
+  // 最后切换到初始页面（如果没有活动任务跳转到其他页面）
+  if (!location.hash || location.hash === '#/') {
+    switchView(initialView);
+  }
 }
 
 // ========== 批量原创: 成本实时预估(顶层,供 initDrafts 调) ==========
@@ -1417,4 +1453,53 @@ function setupOCostEstimator() {
   setTimeout(updateOCost, 100);
 }
 window.updateOCost = updateOCost;
+
+// ========== 取消任务 ==========
+async function cancelTaskById(taskId, prefix) {
+  if (!confirm('确定要取消当前任务吗？已生成的结果将保留。')) return;
+
+  try {
+    const result = await api.cancelTask(taskId, '用户手动取消');
+    if (result.success) {
+      showToast('任务已取消', 'success');
+      // 隐藏取消按钮
+      const cancelBtn = document.getElementById(prefix + '-cancel-btn');
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      // 停止轮询
+      if (prefix === 'o' && originalPoller) {
+        originalPoller.stop();
+      } else if (prefix === 'r' && rewritePoller) {
+        rewritePoller.stop();
+      }
+      // 清理活动任务
+      clearActiveTask(prefix === 'o' ? 'original' : 'rewrite');
+
+      // 清空结果区域，显示空状态
+      const resultEl = document.getElementById(prefix + '-results');
+      const countEl = document.getElementById(prefix + '-result-count');
+      if (resultEl) {
+        resultEl.innerHTML = `<div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <h4>任务已取消</h4>
+          <p>可重新填写表单开始新的生成任务</p>
+        </div>`;
+      }
+      if (countEl) {
+        countEl.textContent = '0 篇';
+      }
+      // 隐藏进度条
+      const bar = document.getElementById(prefix + '-progress');
+      if (bar) bar.classList.remove('show');
+    } else {
+      showToast(result.message || '取消失败', 'error');
+    }
+  } catch (e) {
+    showToast('取消任务失败: ' + e.message, 'error');
+  }
+}
+window.cancelTaskById = cancelTaskById;
 document.addEventListener('DOMContentLoaded', init);

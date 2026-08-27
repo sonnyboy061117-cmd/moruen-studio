@@ -9,7 +9,8 @@ export const STATUS = {
   DEAI_FAIL: '降AI处理失败(未达标)',
   FETCH_FAIL: '抓取失败',
   GEN_FAIL: '生成失败',
-  DONE: '完成'
+  DONE: '完成',
+  CANCELLED: '已取消'
 };
 
 export const STATUS_CLASS = {
@@ -21,7 +22,8 @@ export const STATUS_CLASS = {
   '降AI处理失败(未达标)': 'status-warn',
   '完成': 'status-ok',
   '抓取失败': 'status-error',
-  '生成失败': 'status-error'
+  '生成失败': 'status-error',
+  '已取消': 'status-error'
 };
 
 export function statusBadge(s) {
