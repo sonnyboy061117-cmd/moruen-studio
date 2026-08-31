@@ -17,9 +17,10 @@ const PORT = process.env.PORT || 8787;
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || '*';
 
 // 简易登录(Basic Auth + 内存限流)
-const AUTH_USER = process.env.AUTH_USER || 'moruen';
-const AUTH_PASS = process.env.AUTH_PASS || 'moruen@2026';
+const AUTH_USER = process.env.AUTH_USER;
+const AUTH_PASS = process.env.AUTH_PASS;
 const AUTH_REALM = 'Moruen Studio';
+const AUTH_ENABLED = AUTH_USER && AUTH_PASS;
 
 // 内存限流(per IP, 1 分钟 120 次)
 const buckets = new Map();
@@ -43,6 +44,8 @@ function rateLimit(req, res, next) {
 function basicAuth(req, res, next) {
   // /health 免登录(给监控用)
   if (req.path === '/health') return next();
+  // 如果未启用认证，直接放行
+  if (!AUTH_ENABLED) return next();
   const h = req.headers.authorization || '';
   if (h.startsWith('Basic ')) {
     const [u, p] = Buffer.from(h.slice(6), 'base64').toString('utf-8').split(':');
@@ -84,5 +87,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`[moruen-backend] listening on http://0.0.0.0:${PORT}`);
   console.log(`[moruen-backend] CORS allow: ${ALLOW_ORIGIN}`);
   console.log(`[moruen-backend] serving frontend from ${FRONTEND_DIR}`);
-  console.log(`[moruen-backend] Basic Auth: user='${AUTH_USER}'  (改 AUTH_USER/AUTH_PASS 环境变量)`);
+  if (AUTH_ENABLED) {
+    console.log(`[moruen-backend] Basic Auth: user='${AUTH_USER}'  (改 AUTH_USER/AUTH_PASS 环境变量)`);
+  } else {
+    console.log(`[moruen-backend] Basic Auth: 未启用（公开访问）`);
+  }
 });
