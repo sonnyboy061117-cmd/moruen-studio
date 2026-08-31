@@ -29,6 +29,7 @@ export const api = {
   saveKey: (provider, key) => req('/api/keys/' + provider, { method: 'POST', body: { key } }),
   deleteKey: (provider) => req('/api/keys/' + provider, { method: 'DELETE' }),
   testKey: (provider) => req('/api/keys/' + provider + '/test', { method: 'POST', body: {} }),
+  testKeyTemp: (provider, key) => req('/api/keys/' + provider + '/test', { method: 'POST', body: { tempKey: key } }),
   revealKey: (provider, opts = {}) => {
     const headers = { 'Content-Type': 'application/json' };
     if (opts.auth) headers['Authorization'] = 'Basic ' + btoa(opts.auth.user + ':' + opts.auth.pass);

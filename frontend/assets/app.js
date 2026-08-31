@@ -40,16 +40,44 @@ function showToast(msg, type = 'info', duration = 2800) {
   const t = document.createElement('div');
   t.textContent = msg;
   const colors = { info: '#222', error: '#dc2626', success: '#059669', warn: '#d97706' };
+
+  // 计算当前已有的toast数量，调整位置
+  const existingToasts = document.querySelectorAll('.toast-notification');
+  let topOffset = 20;
+  existingToasts.forEach(toast => {
+    topOffset += toast.offsetHeight + 10; // 每个toast高度 + 10px间距
+  });
+
   Object.assign(t.style, {
-    position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+    position: 'fixed', top: topOffset + 'px', left: '50%', transform: 'translateX(-50%)',
     background: colors[type] || colors.info, color: '#fff',
     padding: '10px 18px', borderRadius: '8px', fontSize: '13px',
-    zIndex: 9999, opacity: '0', transition: 'opacity .25s, transform .25s',
-    boxShadow: '0 6px 24px -6px rgba(0,0,0,.25)', maxWidth: '80vw'
+    zIndex: 9999, opacity: '0', transition: 'opacity .25s, transform .25s, top .25s',
+    boxShadow: '0 6px 24px -6px rgba(0,0,0,.25)', maxWidth: '80vw',
+    pointerEvents: 'auto'
   });
+  t.className = 'toast-notification';
   document.body.appendChild(t);
-  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(8px)'; });
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, duration);
+
+  requestAnimationFrame(() => { t.style.opacity = '1'; });
+
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => {
+      t.remove();
+      // 移除后，重新调整剩余toast的位置
+      repositionToasts();
+    }, 300);
+  }, duration);
+}
+
+function repositionToasts() {
+  const toasts = document.querySelectorAll('.toast-notification');
+  let topOffset = 20;
+  toasts.forEach(toast => {
+    toast.style.top = topOffset + 'px';
+    topOffset += toast.offsetHeight + 10;
+  });
 }
 window.showToast = showToast;
 
@@ -227,9 +255,12 @@ function saveDraft(page) {
     });
     if (!hasContent) {
       localStorage.removeItem(draftKey(page));
+      updateClearDraftButtonState(page, false);
       return;
     }
     localStorage.setItem(draftKey(page), JSON.stringify({ ts: Date.now(), state }));
+    // 保存成功后，更新按钮状态为可用
+    updateClearDraftButtonState(page, true);
   } catch (e) { /* localStorage 满 / 隐私模式 */ }
 }
 
@@ -249,6 +280,152 @@ function loadDraft(page) {
 
 function clearDraft(page) {
   try { localStorage.removeItem(draftKey(page)); } catch (e) {}
+  updateClearDraftButtonState(page, false);
+}
+
+// 确保"清空草稿"按钮存在（始终可见，但根据内容状态启用/禁用）
+function ensureClearDraftButton(page) {
+  const view = document.getElementById('view-' + page);
+  if (!view) return;
+  const inputPanel = view.querySelector('.panel');
+  if (!inputPanel) return;
+
+  let btnContainer = inputPanel.querySelector('.clear-draft-btn-container');
+
+  // 如果按钮容器不存在，创建它
+  if (!btnContainer) {
+    // 对于批量改写页面，需要找到可见的textarea（不在display:none的父元素中）
+    let firstTextarea = null;
+    const textareas = inputPanel.querySelectorAll('textarea');
+    for (const ta of textareas) {
+      // 检查textarea及其父元素是否可见
+      let parent = ta.parentElement;
+      let isVisible = true;
+      while (parent && parent !== inputPanel) {
+        if (parent.style.display === 'none') {
+          isVisible = false;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      if (isVisible) {
+        firstTextarea = ta;
+        break;
+      }
+    }
+
+    if (!firstTextarea) return;
+
+    btnContainer = document.createElement('div');
+    btnContainer.className = 'clear-draft-btn-container';
+    btnContainer.style.cssText = 'margin-top:8px;text-align:right;';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-ghost btn-sm clear-draft-btn';
+    clearBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+      </svg>
+      清空草稿
+    `;
+    clearBtn.style.cssText = 'font-size:12px;color:var(--muted);border-color:var(--border);padding:4px 10px;transition:all 0.2s;';
+
+    clearBtn.addEventListener('click', async () => {
+      // 检查是否有内容可清空
+      const hasContent = loadDraft(page) !== null;
+      if (!hasContent) {
+        showToast('当前没有草稿内容', 'info', 2000);
+        return;
+      }
+
+      // 二次确认弹窗
+      const confirmed = await confirmModal({
+        title: '清空草稿',
+        message: '确定要清空当前草稿吗？此操作不可恢复。',
+        okText: '确认清空',
+        okType: 'danger'
+      });
+
+      if (!confirmed) return;
+
+      clearDraft(page);
+      // 清空当前表单
+      const fields = DRAFT_FIELDS[page] || [];
+      for (const f of fields) {
+        if (f.kind === 'text' || f.kind === 'select') {
+          const el = document.getElementById(f.id);
+          if (el) el.value = '';
+        } else if (f.kind === 'opt' && f.group) {
+          // 不重置为第一个,避免破坏默认值
+        } else if (f.kind === 'check' && f.className) {
+          document.querySelectorAll('.' + f.className).forEach(cb => { cb.checked = false; });
+        }
+      }
+      showToast('已清空草稿', 'info', 2000);
+    });
+
+    btnContainer.appendChild(clearBtn);
+    firstTextarea.parentElement.appendChild(btnContainer);
+  }
+
+  // 按钮始终显示
+  btnContainer.style.display = '';
+}
+
+// 更新"清空草稿"按钮的启用/禁用状态
+function updateClearDraftButtonState(page, hasContent) {
+  const view = document.getElementById('view-' + page);
+  if (!view) return;
+
+  // 先确保按钮存在
+  ensureClearDraftButton(page);
+
+  const clearBtn = view.querySelector('.clear-draft-btn');
+  if (!clearBtn) return;
+
+  if (hasContent) {
+    // 有内容：按钮可用，鼠标悬停时高亮
+    clearBtn.disabled = false;
+    clearBtn.style.opacity = '1';
+    clearBtn.style.cursor = 'pointer';
+
+    // 重新绑定悬停效果
+    clearBtn.onmouseenter = () => {
+      if (!clearBtn.disabled) {
+        clearBtn.style.color = '#dc2626';
+        clearBtn.style.borderColor = '#dc2626';
+        clearBtn.style.background = 'rgba(220, 38, 38, 0.05)';
+      }
+    };
+    clearBtn.onmouseleave = () => {
+      if (!clearBtn.disabled) {
+        clearBtn.style.color = 'var(--muted)';
+        clearBtn.style.borderColor = 'var(--border)';
+        clearBtn.style.background = '';
+      }
+    };
+  } else {
+    // 无内容：按钮禁用，灰色显示
+    clearBtn.disabled = true;
+    clearBtn.style.opacity = '0.4';
+    clearBtn.style.cursor = 'not-allowed';
+    clearBtn.style.color = 'var(--muted)';
+    clearBtn.style.borderColor = 'var(--border)';
+    clearBtn.style.background = '';
+
+    // 移除悬停效果
+    clearBtn.onmouseenter = null;
+    clearBtn.onmouseleave = null;
+  }
+}
+
+// 隐藏"清空草稿"按钮（已废弃，保留用于兼容）
+function hideClearDraftButton(page) {
+  // 不再隐藏按钮，只更新状态为禁用
+  updateClearDraftButtonState(page, false);
 }
 
 // ========== 后台任务进度恢复(刷新不丢) ==========
@@ -377,6 +554,14 @@ function initDrafts() {
     const view = document.getElementById('view-' + page);
     if (!view) return;
 
+    // 0) 首先确保"清空草稿"按钮存在（所有页面都需要）
+    setTimeout(() => {
+      const state = loadDraft(page);
+      const hasContent = state !== null;
+      ensureClearDraftButton(page);
+      updateClearDraftButtonState(page, hasContent);
+    }, 0);
+
     // 1) 恢复草稿(在用户看到表单后)
     const state = loadDraft(page);
     if (state) {
@@ -429,33 +614,14 @@ function showDraftHint(page) {
   if (!view) return;
   const toolHead = view.querySelector('.tool-head');
   if (!toolHead) return;
-  // 避免重复
-  if (toolHead.querySelector('.draft-hint')) return;
-  const bar = document.createElement('div');
-  bar.className = 'draft-hint';
-  bar.style.cssText = 'background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.25);color:#047857;padding:8px 14px;border-radius:8px;margin:0 0 14px 0;font-size:13px;display:flex;align-items:center;gap:10px;';
-  bar.innerHTML = `
-    <span>📋 已自动恢复上次未提交的输入(草稿,7 天内有效)</span>
-    <button id="dh-clear" class="btn btn-ghost btn-sm" style="margin-left:auto;">清空草稿</button>
-  `;
-  toolHead.parentNode.insertBefore(bar, toolHead.nextSibling);
-  bar.querySelector('#dh-clear').addEventListener('click', () => {
-    clearDraft(page);
-    // 清空当前表单
-    const fields = DRAFT_FIELDS[page] || [];
-    for (const f of fields) {
-      if (f.kind === 'text' || f.kind === 'select') {
-        const el = document.getElementById(f.id);
-        if (el) el.value = '';
-      } else if (f.kind === 'opt' && f.group) {
-        // 不重置为第一个,避免破坏默认值
-      } else if (f.kind === 'check' && f.className) {
-        document.querySelectorAll('.' + f.className).forEach(cb => { cb.checked = false; });
-      }
-    }
-    bar.remove();
-    showToast('已清空草稿', 'info', 2000);
-  });
+
+  // 只对当前激活的页面显示Toast通知，避免多页面同时弹出多条
+  if (view.classList.contains('active')) {
+    showToast('📋 已自动恢复上次未提交的输入(草稿,7天内有效)', 'info', 2500);
+  }
+
+  // 确保"清空草稿"按钮显示
+  ensureClearDraftButton(page);
 }
 
 // 把后端 / 上游 LLM 的英文错误码翻译成人话
@@ -511,6 +677,53 @@ async function loadMeta() {
   await renderKeys();
 }
 
+// Key格式验证
+function validateKey(provider, key) {
+  if (!key || !key.trim()) {
+    return '请输入 API Key';
+  }
+
+  // 智谱GLM的Key格式: xxx.xxx (包含点分隔)
+  if (provider === 'zhipu') {
+    if (!/^[a-f0-9]+\.[a-zA-Z0-9]+$/.test(key)) {
+      return '智谱GLM的 Key 格式应为: xxx.xxx（小写字母数字.字母数字）';
+    }
+  }
+
+  // DeepSeek和通义千问通常以sk-开头
+  if ((provider === 'deepseek' || provider === 'qwen') && !key.startsWith('sk-')) {
+    return `${provider === 'deepseek' ? 'DeepSeek' : '通义千问'}的 Key 通常以 sk- 开头，请检查格式`;
+  }
+
+  // 基本长度检查
+  if (key.length < 20) {
+    return 'API Key 长度太短，请检查是否完整';
+  }
+
+  return null; // 验证通过
+}
+
+// 错误分类，提供更友好的提示
+function classifyError(errorMsg) {
+  if (!errorMsg) return 'unknown';
+  const msg = errorMsg.toLowerCase();
+
+  if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid') || msg.includes('authentication')) {
+    return 'invalid_key';
+  }
+  if (msg.includes('402') || msg.includes('insufficient') || msg.includes('quota') || msg.includes('balance')) {
+    return 'insufficient_balance';
+  }
+  if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('network')) {
+    return 'network';
+  }
+  if (msg.includes('429') || msg.includes('rate limit')) {
+    return 'rate_limit';
+  }
+
+  return 'unknown';
+}
+
 async function renderKeys() {
   const r = await api.keys();
   const root = document.querySelector('#view-keys .tool-head').parentElement;
@@ -519,8 +732,18 @@ async function renderKeys() {
 
   // 找到插入位置(底部说明之前)
   let insertBefore = root.querySelector('div[style*="emerald-soft"]');
-  // 国内优先: DeepSeek、文心 排前面(国内节点 + 便宜 + 中文友好),Claude / OpenAI 备用
-  const order = ['deepseek', 'wenxin', 'claude', 'openai'];
+  // 新供应商顺序: DeepSeek、字节豆包、通义千问、智谱GLM、通义万相
+  const order = ['deepseek', 'doubao', 'qwen', 'zhipu', 'tongyi-wanxiang'];
+
+  // 供应商名称映射，用于生成更友好的placeholder
+  const providerNames = {
+    deepseek: 'DeepSeek',
+    doubao: '豆包',
+    qwen: '通义千问',
+    zhipu: '智谱GLM',
+    'tongyi-wanxiang': '通义万相'
+  };
+
   order.forEach(p => {
     const info = r.providers[p];
     if (!info) return;
@@ -536,24 +759,33 @@ async function renderKeys() {
     const displayStatus = info.configured ? '已配置' : '未配置';
     const displayStatusClass = info.configured ? 'status-on' : 'status-off';
 
+    // 生成更友好的placeholder
+    const friendlyName = providerNames[p] || p;
+    const placeholderText = info.configured
+      ? '输入新 Key 覆盖旧的'
+      : `填入${friendlyName}的 API Key`;
+
+    // 通义万相是图片模型，不显示"当前使用"标签
+    const isImageProvider = META.providers[p]?.type === 'image';
+
     div.innerHTML = `
       <div class="api-head">
         <div class="logo" style="background: linear-gradient(135deg, ${logoColor(p, 0)}, ${logoColor(p, 1)});">${info.short}</div>
         <div class="info">
-          <div class="name">${info.name} ${isCurrent ? '<span style="color:var(--emerald);font-size:11px;background:var(--emerald-soft);padding:1px 6px;border-radius:4px;margin-left:6px;">当前使用</span>' : ''} ${isDemoState && !info.configured ? '<span style="color:var(--muted);font-size:11px;background:var(--bg-soft);padding:1px 6px;border-radius:4px;margin-left:6px;">推荐配置</span>' : ''}</div>
-          <div class="sub">${info.configured ? '已配置 · ' + info.models.slice(0, 2).join(' / ') : (isDemoState ? '未配置 · 建议填入真实 Key' : '未配置')}</div>
+          <div class="name">${info.name} ${isCurrent && !isImageProvider ? '<span style="color:var(--emerald);font-size:11px;background:var(--emerald-soft);padding:1px 6px;border-radius:4px;margin-left:6px;">当前使用</span>' : ''} ${isImageProvider ? '<span style="color:#8b5cf6;font-size:11px;background:#f3e8ff;padding:1px 6px;border-radius:4px;margin-left:6px;">图片生成</span>' : ''} ${isDemoState && !info.configured ? '<span style="color:var(--muted);font-size:11px;background:var(--bg-soft);padding:1px 6px;border-radius:4px;margin-left:6px;">推荐配置</span>' : ''}</div>
+          <div class="sub">${info.configured ? '已配置 · ' + info.models.slice(0, 2).join(' / ') : '未配置'}</div>
         </div>
         <span class="api-status ${displayStatusClass}">${displayStatus}</span>
       </div>
       <div class="key-input-row">
-        <input type="password" placeholder="${info.configured ? '输入新 Key 覆盖旧的' : '填入 ' + p + ' 的 API Key'}" value="">
+        <input type="password" placeholder="${placeholderText}" value="">
         <button class="btn btn-primary btn-sm" data-act="save">${info.configured ? '更新' : '保存'}</button>
+        <button class="btn btn-ghost btn-sm" data-act="test" title="测试 API Key 连通性">测试</button>
         ${info.configured ? `
           <button class="btn btn-ghost btn-sm" data-act="reveal" title="显示明文 Key(会做二次身份确认)">显示</button>
-          <button class="btn btn-ghost btn-sm" data-act="test" title="仅验证 Key 能否连通,不会修改默认供应商">测试</button>
           <button class="btn btn-ghost btn-sm" data-act="del">删除</button>
         ` : ''}
-        ${!isCurrent && info.configured ? '<button class="btn btn-emerald btn-sm" data-act="use">设为默认</button>' : ''}
+        ${!isCurrent && info.configured && !isImageProvider ? '<button class="btn btn-emerald btn-sm" data-act="use">设为默认</button>' : ''}
       </div>
       <div class="api-msg" style="margin-top:8px;font-size:12.5px;color:var(--muted);min-height:18px;"></div>
     `;
@@ -568,6 +800,14 @@ async function renderKeys() {
         if (act === 'save') {
           const v = input.value.trim();
           if (!v) { msgEl.innerHTML = '<span style="color:var(--primary);">⚠ 请输入 Key</span>'; return; }
+
+          // Key格式验证
+          const validationError = validateKey(p, v);
+          if (validationError) {
+            msgEl.innerHTML = `<span style="color:var(--primary);">⚠ ${escape(validationError)}</span>`;
+            return;
+          }
+
           msgEl.innerHTML = '<span style="color:var(--muted);">保存中…</span>';
           const oldBtnText = btn.textContent;
           btn.disabled = true; btn.textContent = '保存中…';
@@ -601,19 +841,38 @@ async function renderKeys() {
             btn.disabled = false; btn.textContent = oldBtnText;
           }
         } else if (act === 'test') {
+          // 如果输入框有值，使用输入框的临时Key测试；否则测试已保存的Key
+          const tempKey = input.value.trim();
+
+          if (!tempKey && !info.configured) {
+            msgEl.innerHTML = '<span style="color:var(--primary);">⚠ 请先输入 API Key</span>';
+            return;
+          }
+
           msgEl.innerHTML = '<span style="color:var(--muted);">测试连通中…</span>';
           const oldBtnText = btn.textContent;
           btn.disabled = true; btn.textContent = '测试中…';
           try {
-            const r = await api.testKey(p);
+            let r;
+            if (tempKey) {
+              // 使用临时Key测试（不保存）
+              r = await api.testKeyTemp(p, tempKey);
+            } else {
+              // 测试已保存的Key
+              r = await api.testKey(p);
+            }
+
             if (r.ok) {
-              msgEl.innerHTML = `<span style="color:var(--emerald);font-weight:600;">✓ 连通正常</span> <span style="color:var(--muted);font-size:11.5px;">${escape(r.msg)}</span>`;
+              msgEl.innerHTML = `<span style="color:var(--emerald);font-weight:600;">✓ 连通正常</span> <span style="color:var(--muted);font-size:11.5px;">${escape(r.msg || '测试成功')}</span>`;
               showToast(`${info.name} 连通正常`, 'success', 2500);
             } else {
+              // 根据错误信息提供更详细的反馈
+              const errorType = classifyError(r.msg);
               msgEl.innerHTML = `<span style="color:var(--primary);font-weight:600;">✗ ${escape(friendlyError(r.msg))}</span>`;
               showToast(friendlyError(r.msg), 'error', 5000);
             }
           } catch (e) {
+            const errorType = classifyError(e.message);
             msgEl.innerHTML = `<span style="color:var(--primary);">✗ ${escape(friendlyError(e.message))}</span>`;
             showToast(friendlyError(e.message), 'error', 5000);
           } finally {
@@ -666,7 +925,11 @@ function logoColor(p, idx) {
     claude: ['#f59e0b', '#ea580c'],
     openai: ['#6366f1', '#8b5cf6'],
     wenxin: ['#10b981', '#14b8a6'],
-    deepseek: ['#ec4899', '#db2777']
+    deepseek: ['#ec4899', '#db2777'],
+    doubao: ['#3b82f6', '#2563eb'],
+    qwen: ['#f59e0b', '#ea580c'],
+    zhipu: ['#8b5cf6', '#7c3aed'],
+    'tongyi-wanxiang': ['#a855f7', '#9333ea']
   };
   return (colors[p] || ['#888', '#aaa'])[idx];
 }
@@ -1161,45 +1424,102 @@ function bindUniversalActions(item) {
 }
 
 // ========== 5. 一键排版 ==========
-async function layoutArticle() {
+async function layoutArticle(copyToClipboard = true) {
   const text = document.getElementById('l-text').value.trim();
   if (!text) { showToast('请输入原文', 'warn'); return; }
   const style = document.querySelector('[data-group="l-style"] .opt-btn.active')?.dataset.val || '简约';
   const size = document.getElementById('l-size').value;
   const line = document.getElementById('l-line').value;
   const withImages = document.getElementById('l-images').checked;
+  const withAutoImages = document.getElementById('l-auto-images').checked;
   const withEmoji = document.getElementById('l-emoji').checked;
   const withQuote = document.getElementById('l-quote').checked;
   const withAI = document.getElementById('l-ai-off').checked;
 
   const resultEl = document.getElementById('l-results');
-  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">排版生成中…</div>';
+
+  // 检查是否需要自动配图
+  if (withAutoImages) {
+    // 调用后端API检查通义万相是否已配置
+    try {
+      const keysData = await api.keys();
+      const tongyiConfig = keysData.providers['tongyi-wanxiang'];
+      if (!tongyiConfig || !tongyiConfig.configured) {
+        showToast('请先在「模型秘钥」页面配置通义万相API密钥', 'warn');
+        return;
+      }
+    } catch (e) {
+      showToast('检查API密钥配置失败', 'error');
+      return;
+    }
+  }
+
+  // 显示加载状态
+  if (withAutoImages) {
+    resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><div style="margin-bottom:10px;">🎨 AI正在生成配图...</div><div style="font-size:12px;opacity:0.7;">这可能需要10-30秒，请耐心等待</div></div>';
+  } else {
+    resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">排版生成中…</div>';
+  }
+
   try {
-    const r = await api.layout({ text, style, size, line, withImages, withEmoji, withQuote, withAI, provider: PROVIDER_DEFAULT, demo: isDemo() });
+    const r = await api.layout({
+      text, style, size, line, withImages, withEmoji, withQuote, withAI,
+      withAutoImages,
+      provider: PROVIDER_DEFAULT,
+      demo: isDemo()
+    });
+
+    // 如果配图失败但排版成功，显示提示
+    if (withAutoImages && !r.imageGenerated) {
+      showToast('配图生成失败，已跳过，排版继续', 'info', 3000);
+    }
+
     resultEl.innerHTML = r.html + `<div style="margin-top:14px;display:flex;gap:8px;justify-content:center;">
       <button class="btn btn-primary btn-sm" id="l-copy-btn">📋 复制到公众号</button>
       <button class="btn btn-ghost btn-sm" id="l-html-btn">查看 HTML</button>
     </div>`;
+
     document.getElementById('l-copy-btn').onclick = async () => {
       try {
         const blob = new Blob([r.html], { type: 'text/html' });
         const textBlob = new Blob([r.html.replace(/<[^>]+>/g, '')], { type: 'text/plain' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob, 'text/plain': textBlob })]);
-        showToast('已复制,粘贴到公众号即可', 'success');
+        showToast('已复制，粘贴到公众号即可', 'success');
       } catch { showToast('复制失败', 'error'); }
     };
+
     document.getElementById('l-html-btn').onclick = () => {
       const w = window.open('', '_blank');
       if (w) { w.document.write(r.html); w.document.title = r.title; }
     };
-    showToast('排版完成', 'success');
+
+    // 如果是"排版并复制"按钮调用，自动复制到剪贴板
+    if (copyToClipboard) {
+      try {
+        const blob = new Blob([r.html], { type: 'text/html' });
+        const textBlob = new Blob([r.html.replace(/<[^>]+>/g, '')], { type: 'text/plain' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob, 'text/plain': textBlob })]);
+        const successMsg = withAutoImages && r.imageGenerated ? '排版完成（含AI配图）已复制' : '排版完成，已复制到剪贴板';
+        showToast(successMsg, 'success');
+      } catch {
+        const successMsg = withAutoImages && r.imageGenerated ? '排版完成（含AI配图）' : '排版完成';
+        showToast(successMsg, 'success');
+      }
+    } else {
+      const successMsg = withAutoImages && r.imageGenerated ? '预览已生成（含AI配图）' : '预览已生成';
+      showToast(successMsg, 'success');
+    }
   } catch (e) {
     showToast(e.message, 'error');
+    resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--error);">排版失败，请重试</div>';
   }
 }
 window.layoutArticle = layoutArticle;
 
-function previewLayout() { showToast('先点击「开始排版」生成预览', 'info'); }
+// 预览按钮：不复制到剪贴板
+function previewLayout() {
+  layoutArticle(false);
+}
 window.previewLayout = previewLayout;
 
 // ========== 6. opt-btn 切换 ==========

@@ -463,7 +463,7 @@
     background: white;
     box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
   }
-  textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+  textarea { resize: none; min-height: 120px; line-height: 1.6; }
   .field { margin-bottom: 14px; }
 
   .field-row {
@@ -882,7 +882,6 @@
       <div class="avatar">墨</div>
       <div class="user-info">
         <div class="user-name">墨韵工坊</div>
-        <div class="user-plan">内部工具 · 团队自用</div>
       </div>
     </div>
   </aside>
@@ -1080,7 +1079,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
             </div>
             <div class="card-title">⑥ 模型秘钥 <span class="tag tag-emerald">配置</span></div>
-            <p><strong>4 家模型:Claude / GPT-4 / 文心 / DeepSeek</strong>。</p>
+            <p><strong>4 家模型: DeepSeek / 字节豆包 / 通义千问 / 智谱GLM</strong>。</p>
             <p>本地加密存储(AES-256-GCM),可设默认供应商。</p>
           </div>
 
@@ -1127,7 +1126,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/></svg>
             </div>
             <div class="card-title">写文顶尖模型</div>
-            <p>基于 <strong>克劳德模型</strong> 深度定制。写作逻辑、文采及原创度远超常规模型。双供应商自由切换，<span class="highlight">按量计费极低成本</span>。</p>
+            <p>支持 <strong>DeepSeek、字节豆包、通义千问、智谱GLM</strong> 四家国内主流模型。写作逻辑、文采及原创度优秀。多供应商自由切换，<span class="highlight">按量计费极低成本</span>。</p>
             <div class="meta-row">
               <span class="tag tag-pink">价格亲民</span>
             </div>
@@ -1369,19 +1368,17 @@
     <section class="view" id="view-rewrite">
       <div class="tool-head">
         <h2>批量改写 <span class="tag tag-emerald" style="font-size:12px;padding:1px 8px;background:var(--emerald-soft);color:var(--emerald);border-radius:999px;margin-left:8px;vertical-align:middle;">1 → N 篇</span></h2>
-        <p><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。支持链接抓取（公众号 / 头条 / 知乎）或直接粘贴原文。</p>
+        <p style="margin-bottom:8px;"><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。支持链接抓取（公众号 / 头条 / 知乎）或直接粘贴原文。</p>
       </div>
 
-      <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 0 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:13px;line-height:1.6;">
+      <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:0 0 12px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;line-height:1.5;">
         <div>
-          <div style="font-weight:600;color:var(--emerald);margin-bottom:4px;">📦 批量改写（1 → N 篇）</div>
-          <div style="color:var(--muted);"><strong>用途</strong>：1 篇原文变 N 篇不同角度版本,批量产出。</div>
-          <div style="color:var(--muted);"><strong>适合</strong>：看到爆款想"换皮"出多篇;有 1 个选题要铺量。</div>
+          <div style="font-weight:600;color:var(--emerald);margin-bottom:2px;">📦 批量改写（1 → N 篇）</div>
+          <div style="color:var(--muted);font-size:11.5px;"><strong>用途</strong>：1 篇原文变 N 篇不同角度版本,批量产出。</div>
         </div>
         <div>
-          <div style="font-weight:600;color:#b45309;margin-bottom:4px;">✍️ 万能改写（单篇精细）</div>
-          <div style="color:var(--muted);"><strong>用途</strong>：1 篇稿子精调成特定风格/长度/人味,不出多篇。</div>
-          <div style="color:var(--muted);"><strong>适合</strong>：自己写了 1 篇想改改口吻;只想降 AI 味不想扩写。</div>
+          <div style="font-weight:600;color:#b45309;margin-bottom:2px;">✍️ 万能改写（单篇精细）</div>
+          <div style="color:var(--muted);font-size:11.5px;"><strong>用途</strong>：1 篇稿子精调成特定风格/长度/人味,不出多篇。</div>
         </div>
       </div>
       <div class="tool-grid">
@@ -1389,16 +1386,11 @@
           <h3>🔗 来源输入</h3>
           <div class="field">
             <label>原文来源</label>
-            <div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid #0ea5e9;color:#0c4a6e;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;line-height:1.6;">
-              <div style="display:flex;align-items:start;gap:8px;">
-                <span style="font-size:16px;">💡</span>
-                <div>
-                  <strong style="color:#0369a1;">推荐使用「直接粘贴原文」</strong>
-                  <p style="margin:4px 0 0 0;opacity:0.85;font-size:12px;">公众号/头条/知乎有反爬限制，粘贴链接可能失败</p>
-                </div>
-              </div>
+            <div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid #0ea5e9;color:#0c4a6e;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.5;">
+              <strong style="color:#0369a1;">推荐使用「直接粘贴原文」</strong>
+              <span style="opacity:0.85;font-size:11px;margin-left:4px;">公众号/头条/知乎有反爬限制</span>
             </div>
-            <div class="opt-grid" style="grid-template-columns: 1fr 1fr; max-width: 360px; margin-bottom: 12px;">
+            <div class="opt-grid" style="grid-template-columns: 1fr 1fr; max-width: 360px; margin-bottom: 10px;">
               <button class="opt-btn" data-r-mode="url">🔗 粘贴链接</button>
               <button class="opt-btn active" data-r-mode="text">📋 直接粘贴原文</button>
             </div>
@@ -1407,21 +1399,16 @@
               <div id="r-urls-hint" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;"></div>
             </div>
             <div data-r-pane="text">
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;color:#475569;padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.6;">
-                <div style="display:flex;align-items:start;gap:8px;">
-                  <span style="font-size:15px;">📝</span>
-                  <div>
-                    <strong style="color:#334155;">多篇文章分隔方式</strong>
-                    <p style="margin:4px 0 0 0;opacity:0.85;font-size:12px;">
-                      单篇直接粘贴 · 多篇用 <code style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;border:1px solid #e2e8f0;">---</code> 分隔（单独一行）
-                    </p>
-                    <p style="margin:4px 0 0 0;opacity:0.7;font-size:11.5px;">
-                      示例：2篇原文 × 3改写 = 6篇结果
-                    </p>
-                  </div>
+              <details style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;font-size:12px;">
+                <summary style="padding:6px 10px;cursor:pointer;user-select:none;color:#334155;font-weight:500;">
+                  📝 多篇文章分隔方式（点击查看详情）
+                </summary>
+                <div style="padding:0 10px 8px 10px;color:#475569;line-height:1.5;font-size:11.5px;border-top:1px solid #e2e8f0;margin-top:4px;padding-top:8px;">
+                  <p style="margin:0 0 4px 0;">单篇直接粘贴 · 多篇用 <code style="background:#fff;padding:1px 4px;border-radius:3px;font-family:monospace;border:1px solid #e2e8f0;">---</code> 分隔（单独一行）</p>
+                  <p style="margin:0;opacity:0.7;font-size:11px;">示例：2篇原文 × 3改写 = 6篇结果</p>
                 </div>
-              </div>
-              <textarea id="r-text" style="min-height:260px;" placeholder="把公众号/头条/知乎的原文粘贴到这里
+              </details>
+              <textarea id="r-text" style="min-height:200px;" placeholder="把公众号/头条/知乎的原文粘贴到这里
 
 支持一次粘贴多篇(用 --- 隔开):
 第一篇标题...
@@ -1580,6 +1567,9 @@
           <div class="field">
             <label>原文内容</label>
             <textarea id="l-text" style="min-height: 200px;" placeholder="粘贴需要排版的纯文本..."></textarea>
+            <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+              💡 提示：如需指定标题，请用【】包裹该行文字，例如：【标题】
+            </div>
           </div>
           <div class="field">
             <label>选择风格</label>
@@ -1613,7 +1603,8 @@
           <div class="field">
             <label>附加处理</label>
             <div class="checkbox-grid">
-              <label><input type="checkbox" id="l-images" checked><span>自动配图</span></label>
+              <label><input type="checkbox" id="l-images"><span>配图占位符</span></label>
+              <label><input type="checkbox" id="l-auto-images"><span>AI自动配图</span></label>
               <label><input type="checkbox" id="l-emoji"><span>添加表情</span></label>
               <label><input type="checkbox" id="l-quote"><span>重点引用</span></label>
               <label><input type="checkbox" id="l-ai-off"><span>降 AI 味</span></label>

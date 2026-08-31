@@ -45,7 +45,11 @@ router.delete('/keys/:provider', (req, res) => {
 
 // 测试连接
 router.post('/keys/:provider/test', async (req, res) => {
-  const r = await testProvider(req.params.provider);
+  const { provider } = req.params;
+  const { tempKey } = req.body || {};
+
+  // 如果提供了tempKey，使用临时Key测试；否则使用已保存的Key
+  const r = await testProvider(provider, tempKey);
   res.json(r);
 });
 

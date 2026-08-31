@@ -3,10 +3,11 @@
 import { config } from './config.js';
 import { getKey } from './keys.js';
 
-export async function chat({ provider, messages, temperature = 0.8, maxTokens = 2048, system, model, demo = false }) {
+export async function chat({ provider, messages, temperature = 0.8, maxTokens = 2048, system, model, demo = false, tempKey = null }) {
   if (demo) return mockChat({ messages, system, maxTokens, kind: detectKind(messages) });
 
-  const apiKey = getKey(provider);
+  // 如果提供了tempKey，使用它；否则从存储中获取
+  const apiKey = tempKey || getKey(provider);
   if (!apiKey) {
     throw new Error(`未配置 ${config.providers.providers[provider]?.name || provider} 的 API Key(可在「模型秘钥」页开启演示模式)`);
   }
@@ -192,16 +193,82 @@ async function callOpenAICompatible(apiKey, model, baseUrl, messages, system, te
 }
 
 // 测试连接: 最小成本 ping
-export async function testProvider(provider) {
+export async function testProvider(provider, tempKey = null) {
   try {
+    const providerConfig = config.providers.providers[provider];
+    if (!providerConfig) {
+      throw new Error('未知供应商');
+    }
+
+    // 判断是否为图片生成模型
+    if (providerConfig.type === 'image') {
+      return await testImageProvider(provider, tempKey);
+    }
+
+    // 文字模型测试逻辑
     const text = await chat({
       provider,
       messages: [{ role: 'user', content: 'ping' }],
       maxTokens: 8,
-      temperature: 0
+      temperature: 0,
+      tempKey  // 传递临时Key
     });
     return { ok: true, msg: `连通正常(回显: ${text.trim().slice(0, 20)})` };
   } catch (e) {
     return { ok: false, msg: e.message };
+  }
+}
+
+// 测试图片生成模型
+async function testImageProvider(provider, tempKey = null) {
+  try {
+    const providerConfig = config.providers.providers[provider];
+    const apiKey = tempKey || getKey(provider);
+
+    if (!apiKey) {
+      throw new Error('未配置API Key');
+    }
+
+    // 通义万相的测试请求
+    const API_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'X-DashScope-Async': 'enable'
+      },
+      body: JSON.stringify({
+        model: 'wanx-v1',
+        input: {
+          prompt: '一只可爱的猫'
+        },
+        parameters: {
+          style: '<auto>',
+          size: '1024*1024',
+          n: 1
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API请求失败: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    // 检查返回是否包含task_id（异步任务）或直接返回结果
+    if (result.output && (result.output.task_id || result.output.results)) {
+      return { ok: true, msg: '连通正常，图片生成API可用' };
+    } else if (result.request_id) {
+      // 有些情况下会返回request_id表示请求已接收
+      return { ok: true, msg: '连通正常，图片生成API可用' };
+    } else {
+      throw new Error('API返回格式异常');
+    }
+  } catch (e) {
+    return { ok: false, msg: `调用失败: ${e.message}` };
   }
 }

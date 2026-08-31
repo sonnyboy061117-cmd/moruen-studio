@@ -64,3 +64,6 @@ __pycache__/
 
 # 容器
 *.tar
+
+# 运行时生成的图片(体积大,不入库)
+backend/public/generated-images/

@@ -1,11 +1,56 @@
 {
   "_comment": "排版: 5 套风格,字号 4 档,行间距 3 档,均为固定值(非连续)",
   "layout_styles": [
-    { "key": "简约", "color": "#1f1c18", "accent": "#ea580c", "font": "Noto Sans SC", "bg": "#fffaf3" },
-    { "key": "文艺", "color": "#5b4636", "accent": "#a16207", "font": "Noto Serif SC", "bg": "#fdf6e3" },
-    { "key": "商务", "color": "#1e293b", "accent": "#1d4ed8", "font": "Noto Sans SC", "bg": "#f8fafc" },
-    { "key": "清新", "color": "#065f46", "accent": "#10b981", "font": "Noto Sans SC", "bg": "#f0fdf4" },
-    { "key": "经典", "color": "#000000", "accent": "#dc2626", "font": "Noto Serif SC", "bg": "#fafaf9" }
+    {
+      "key": "简约",
+      "color": "#2c2c2c",
+      "accent": "#3a3a3a",
+      "lightAccent": "#e8e8e8",
+      "font": "Noto Sans SC",
+      "bg": "#ffffff",
+      "quoteBg": "#f7f7f7",
+      "quoteBorder": "#d0d0d0"
+    },
+    {
+      "key": "文艺",
+      "color": "#5c4a3a",
+      "accent": "#8b7355",
+      "lightAccent": "#d4c4b0",
+      "font": "Noto Serif SC",
+      "bg": "#faf8f5",
+      "quoteBg": "#f3ede5",
+      "quoteBorder": "#c9b8a3"
+    },
+    {
+      "key": "商务",
+      "color": "#1a2332",
+      "accent": "#2563eb",
+      "lightAccent": "#dbeafe",
+      "font": "Noto Sans SC",
+      "bg": "#f8fafc",
+      "quoteBg": "#eff6ff",
+      "quoteBorder": "#93c5fd"
+    },
+    {
+      "key": "清新",
+      "color": "#065f46",
+      "accent": "#10b981",
+      "lightAccent": "#d1fae5",
+      "font": "Noto Sans SC",
+      "bg": "#f0fdf4",
+      "quoteBg": "#ecfdf5",
+      "quoteBorder": "#6ee7b7"
+    },
+    {
+      "key": "经典",
+      "color": "#3f2317",
+      "accent": "#b91c1c",
+      "lightAccent": "#fee2e2",
+      "font": "Noto Serif SC",
+      "bg": "#fefdfb",
+      "quoteBg": "#fef2f2",
+      "quoteBorder": "#fca5a5"
+    }
   ],
   "font_sizes": [
     { "key": "14px", "label": "14px 紧凑", "px": 14 },

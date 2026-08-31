@@ -71,6 +71,10 @@ app.use('/api', metaRouter);
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
 app.use(express.static(FRONTEND_DIR, { index: 'index.html', maxAge: 0 }));
 
+// 托管生成的图片文件
+const PUBLIC_DIR = path.join(__dirname, 'public');
+app.use(express.static(PUBLIC_DIR, { maxAge: 0 }));
+
 app.use((err, req, res, next) => {
   console.error('[ERR]', err);
   res.status(500).json({ error: err.message || '内部错误' });

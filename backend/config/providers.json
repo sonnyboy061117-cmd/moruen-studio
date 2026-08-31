@@ -1,40 +1,7 @@
 {
-  "_comment": "模型供应商配置,4 家",
-  "default_provider": "claude",
+  "_comment": "模型供应商配置,5 家(含1个图片生成)",
+  "default_provider": "deepseek",
   "providers": {
-    "claude": {
-      "name": "克劳德 Claude (Anthropic)",
-      "short": "克",
-      "base_url": "https://api.anthropic.com/v1/messages",
-      "type": "anthropic",
-      "models": ["claude-sonnet-4-5", "claude-haiku-4-5"],
-      "default_model": "claude-sonnet-4-5",
-      "key_prefix": "sk-ant-",
-      "default_configured": true,
-      "cost_per_1k_tokens": 0.024
-    },
-    "openai": {
-      "name": "GPT-4 (OpenAI)",
-      "short": "G",
-      "base_url": "https://api.openai.com/v1/chat/completions",
-      "type": "openai",
-      "models": ["gpt-4o", "gpt-4o-mini"],
-      "default_model": "gpt-4o-mini",
-      "key_prefix": "sk-",
-      "default_configured": false,
-      "cost_per_1k_tokens": 0.018
-    },
-    "wenxin": {
-      "name": "文心一言 (百度)",
-      "short": "心",
-      "base_url": "https://qianfan.baidubce.com/v2/chat/completions",
-      "type": "openai",
-      "models": ["ernie-4.5-8k", "ernie-3.5-8k"],
-      "default_model": "ernie-4.5-8k",
-      "key_prefix": "",
-      "default_configured": true,
-      "cost_per_1k_tokens": 0.008
-    },
     "deepseek": {
       "name": "DeepSeek (深度求索)",
       "short": "深",
@@ -45,6 +12,51 @@
       "key_prefix": "sk-",
       "default_configured": false,
       "cost_per_1k_tokens": 0.002
+    },
+    "doubao": {
+      "name": "字节豆包 (Doubao)",
+      "short": "豆",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+      "type": "openai",
+      "models": ["doubao-pro-32k", "doubao-lite-32k"],
+      "default_model": "doubao-pro-32k",
+      "key_prefix": "",
+      "default_configured": false,
+      "cost_per_1k_tokens": 0.008
+    },
+    "qwen": {
+      "name": "通义千问 (Qwen)",
+      "short": "千",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "type": "openai",
+      "models": ["qwen-plus", "qwen-turbo"],
+      "default_model": "qwen-plus",
+      "key_prefix": "sk-",
+      "default_configured": false,
+      "cost_per_1k_tokens": 0.004
+    },
+    "zhipu": {
+      "name": "智谱GLM (Zhipu)",
+      "short": "智",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      "type": "openai",
+      "models": ["glm-4-plus", "glm-4-flash"],
+      "default_model": "glm-4-plus",
+      "key_prefix": "",
+      "key_pattern": "^[a-f0-9]+\\.[a-z0-9]+$",
+      "default_configured": false,
+      "cost_per_1k_tokens": 0.005
+    },
+    "tongyi-wanxiang": {
+      "name": "通义万相 (Wanxiang)",
+      "short": "图",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "type": "image",
+      "models": ["wanx-v1"],
+      "default_model": "wanx-v1",
+      "key_prefix": "sk-",
+      "default_configured": false,
+      "cost_per_image": 0.08
     }
   }
 }
