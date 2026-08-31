@@ -31,9 +31,9 @@ ENV PORT=8787 \
     MORUEN_API_BASE= \
     ALLOW_ORIGIN=*
 
-# 数据持久化目录
+# 数据持久化目录(仅密钥存储需要持久化,config 随镜像发布,不应做成卷)
 RUN mkdir -p /app/backend/data
-VOLUME ["/app/backend/data", "/app/backend/config"]
+VOLUME ["/app/backend/data"]
 
 EXPOSE 8787
 

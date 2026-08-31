@@ -10,12 +10,17 @@ router.get('/meta', (req, res) => {
     strengths: config.strengths,
     styles: config.styles,
     prompts: config.prompts,
-    providers: {
-      ...Object.fromEntries(Object.entries(config.providers.providers).map(([k, v]) => [k, {
-        name: v.name, short: v.short, models: v.models, default_model: v.default_model, default_configured: v.default_configured
-      }])),
-      default: config.providers.default_provider
-    },
+    providers: Object.fromEntries(
+      Object.entries(config.providers.providers).map(([k, v]) => [k, {
+        name: v.name,
+        short: v.short,
+        models: v.models,
+        default_model: v.default_model,
+        default_configured: v.default_configured,
+        type: v.type
+      }])
+    ),
+    default_provider: config.providers.default_provider,
     scoring_pass_threshold: config.scoring.pass_threshold
   });
 });
