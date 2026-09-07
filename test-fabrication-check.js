@@ -68,7 +68,7 @@ async function testStrength(strength) {
   }
 
   const data = await response.json();
-  const result = data.result || data.output || '';
+  const result = data.text || data.result || data.output || '';
 
   console.log('\n📝 改写结果：');
   console.log('-'.repeat(80));

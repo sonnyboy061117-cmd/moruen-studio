@@ -1372,9 +1372,19 @@ async function universalRewrite() {
   const style = document.getElementById('u-style').value || undefined;
   const structure = document.getElementById('u-structure').value || undefined;
 
+  // 根据选择的强度显示不同的加载提示
+  const loadingMessages = {
+    '轻度': '正在润色改写（预计5-10秒）...',
+    '中度': '正在重组改写（预计8-15秒）...',
+    '深度': '正在深度重组改写（预计10-20秒）...',
+    '完全重写': '正在完全重写（预计15-30秒）...',
+    '彻底重写': '正在完全重写（预计15-30秒）...'
+  };
+  const loadingMsg = loadingMessages[strength] || '正在改写中（预计30-60秒）...';
+
   const resultEl = document.getElementById('u-results');
   const countEl = document.getElementById('u-result-count');
-  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">正在深度重组改写（预计30-60秒）...</div>';
+  resultEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);">${loadingMsg}</div>`;
   countEl.textContent = '改写中…';
   showProgress('u-progress');
   setProgress('u-progress', 20);
