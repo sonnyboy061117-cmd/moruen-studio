@@ -1456,9 +1456,9 @@ function bindUniversalActions(item) {
   const root = document.getElementById('u-results');
   root.querySelectorAll('button[data-act]').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.dataset.act === 'copy') copyText(`${item.title}\n\n${item.body}`, btn);
+      if (btn.dataset.act === 'copy') copyText(item.body, btn);  // 只复制正文，不包含标题
       if (btn.dataset.act === 'toLayout') {
-        document.getElementById('l-text').value = `${item.title}\n\n${item.body}`;
+        document.getElementById('l-text').value = item.body;  // 也只导入正文
         showToast('已导入到「一键排版」', 'success');
         switchView('layout');
       }
