@@ -10,6 +10,7 @@ import { isConfigured, getKey } from '../lib/keys.js';
 import { checkAccess, checkAndConsumeBalance } from '../lib/access.js';
 import { getMembership } from '../lib/db.js';
 import { processHotlinkImages } from '../lib/hotlink-protect.js';
+import { validateFullRewrite } from '../lib/rewrite-validator.js';
 
 const router = Router();
 
@@ -110,13 +111,90 @@ router.post('/universal', checkAccess, async (req, res) => {
         style,
         structure
       });
-      const out = await chat({
-        provider: p,
-        demo: useDemo,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.85, maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
-      });
+
+      // 带自动重试的 chat 调用（最多重试1次）
+      let out;
+      let retryCount = 0;
+      const maxRetries = 1;
+
+      while (retryCount <= maxRetries) {
+        try {
+          out = await chat({
+            provider: p,
+            demo: useDemo,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.85,
+            maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
+          });
+          break; // 成功则跳出循环
+        } catch (chatError) {
+          retryCount++;
+          if (retryCount > maxRetries) {
+            throw chatError; // 重试次数用尽，抛出错误
+          }
+          console.warn(`[改写调用失败，自动重试 ${retryCount}/${maxRetries}]`, chatError.message);
+          // 等待1秒后重试
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
       finalText = out.trim();
+
+      // 完全重写强度：验证新增内容数量
+      if ((strength === '完全重写' || strength === '彻底重写') && !useDemo) {
+        const validation = validateFullRewrite(workingText, finalText);
+
+        // 如果未达标，最多重试2次
+        let validationRetry = 0;
+        const maxValidationRetries = 2;
+
+        while (!validation.passed && validationRetry < maxValidationRetries) {
+          validationRetry++;
+          console.warn(`[完全重写新增内容不足，重新生成 ${validationRetry}/${maxValidationRetries}]`, validation.message);
+
+          try {
+            out = await chat({
+              provider: p,
+              demo: useDemo,
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0.9, // 提高温度增加创造性
+              maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
+            });
+            finalText = out.trim();
+
+            // 重新验证
+            const newValidation = validateFullRewrite(workingText, finalText);
+            if (newValidation.passed) {
+              console.log(`[完全重写重新生成成功]`, newValidation.message);
+              break;
+            }
+          } catch (retryError) {
+            console.error(`[完全重写重试失败]`, retryError.message);
+            break;
+          }
+
+          // 等待1秒后继续
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // 最终验证结果（无论是否达标都继续，只是附加提示）
+        const finalValidation = validateFullRewrite(workingText, finalText);
+        if (!finalValidation.passed) {
+          console.warn('[完全重写最终未达标]', finalValidation.message);
+          // 在响应中附加提示，但不阻断返回
+          res.json({
+            text: finalText,
+            score: scoreAI(finalText).score,
+            level: scoreAI(finalText).level,
+            threshold: scoreAI(finalText).threshold,
+            passed: scoreAI(finalText).passed,
+            warning: '本次生成的原创新增内容较少，建议人工检查或重新生成',
+            validation: finalValidation
+          });
+          return;
+        }
+      }
+
       if (aiOff) {
         const r = await runDeAI({ text: finalText, provider: p, demo: !!demo });
         finalText = r.text;
