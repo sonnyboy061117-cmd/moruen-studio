@@ -62,39 +62,208 @@ export function getLengthRange(target) {
   return { min: target - tolerance, max: target + tolerance };
 }
 
-export function buildBatchRewritePrompt({ originalText, strength, logic, targetLength, angle }) {
+// 文章结构模板定义
+export const ARTICLE_STRUCTURES = {
+  结论先行: {
+    name: '结论先行型',
+    description: '开门见山给出核心观点 → 分点展开论据/案例 → 结尾升华或行动建议',
+    template: `【第一阶段：提炼】
+请先从原文中提炼：
+1. 核心结论（1-2句话，可以是观点/方法/建议）
+2. 支撑结论的3-5个论据/案例/数据
+3. 整体情绪基调
+
+【第二阶段：重组 - 结论先行型结构】
+按以下结构重写：
+▸ 开篇（占10%）：直接抛出核心结论，一句话说清"我要告诉你什么"
+▸ 主体（占75%）：分2-4个小点展开，每个点用事实/案例/数据支撑，点与点之间不用"首先其次"，改用自然过渡（"比如说""再看一个""更关键的是"）
+▸ 结尾（占15%）：升华主题或给出具体行动建议，不要"综上所述"
+
+【核心要求】
+- 开篇必须在前50字内说清结论，不要铺垫
+- 每个论据段控制在150-250字
+- 至少2个具体案例带数字/地点/人名
+- 结尾给出"明天就能做"的具体建议，不要空洞总结`
+  },
+
+  故事引入: {
+    name: '故事引入型',
+    description: '具体场景/故事开头 → 中间转折到观点/方法 → 结尾行动号召',
+    template: `【第一阶段：提炼】
+请先从原文中提炼：
+1. 可以转化为故事/场景的核心事件或案例
+2. 文章想传达的观点/方法
+3. 目标读者可能面临的痛点
+
+【第二阶段：重组 - 故事引入型结构】
+按以下结构重写：
+▸ 开篇（占20%）：用一个具体场景或小故事切入，带画面感（时间/地点/人物/对话），让读者产生"这不就是我吗"的代入感
+▸ 转折（占10%）：从故事自然过渡到观点，用"其实""说白了""这件事让我明白"等口语化连接
+▸ 主体（占55%）：展开方法/观点，用2-3个递进的段落，每段一个小点，继续穿插小案例
+▸ 结尾（占15%）：行动号召，告诉读者"你现在可以做什么"，语气像朋友建议
+
+【核心要求】
+- 开篇故事必须具体到有时间/地点/人物，不能是"有一个朋友"这种虚构感
+- 转折要自然，不要生硬的"那么问题来了"
+- 结尾必须包含可执行的行动，不要"希望对你有帮助"这种空话`
+  },
+
+  问题拆解: {
+    name: '问题拆解型',
+    description: '提出问题 → 分析问题（为什么会这样）→ 给出解决方案（怎么办）',
+    template: `【第一阶段：提炼】
+请先从原文中提炼：
+1. 核心问题是什么（用一个疑问句概括）
+2. 问题背后的原因/痛点（2-3个）
+3. 解决方案/方法（分步骤）
+
+【第二阶段：重组 - 问题拆解型结构】
+按以下结构重写：
+▸ 问题（占15%）：用反问/设问开篇，描述一个目标读者正在经历的困境或疑问，带入场景
+▸ 分析（占35%）：拆解问题，说明"为什么会这样""难在哪里"，给出2-3个原因，每个原因用具体案例支撑
+▸ 方案（占40%）：给出解决方案，分2-4个步骤，每步都具体可执行，带数字/时间节点
+▸ 结尾（占10%）：总结一句话要点，或给一个"最小行动"建议
+
+【核心要求】
+- 开篇问题要足够具体，不要"如何成功"这种大而空的问题
+- 分析部分要有洞察，不要流水账复述现象
+- 方案部分每一步都要可落地，不要"提升认知""加强学习"这种虚词
+- 整体语气像咨询师/教练，专业但不装腔作势`
+  }
+};
+
+// 随机选择一个结构模板
+export function getRandomStructure() {
+  const keys = Object.keys(ARTICLE_STRUCTURES);
+  const randomKey = keys[Math.floor(Math.random() * keys.length)];
+  return { key: randomKey, ...ARTICLE_STRUCTURES[randomKey] };
+}
+
+// 根据指定风格选择结构
+export function getStructureByStyle(style) {
+  const styleMap = {
+    '干货型': '结论先行',
+    '故事型': '故事引入',
+    '方法论': '问题拆解',
+    '经验分享': '故事引入',
+    '深度分析': '问题拆解'
+  };
+  const structureKey = styleMap[style] || '结论先行';
+  return { key: structureKey, ...ARTICLE_STRUCTURES[structureKey] };
+}
+
+export function buildBatchRewritePrompt({ originalText, strength, logic, targetLength, angle, structure }) {
+  const logicText = (logic && logic.length) ? logic.join('、') : '不同角度重写';
+
+  // 如果没有指定结构，随机选择一个
+  const selectedStructure = structure ? ARTICLE_STRUCTURES[structure] : getRandomStructure();
+
   return `你是改写老手。请把下面这篇文章改写成"完全不像原版,但核心信息保留"的新版。
+
+【基础参数】
 改写强度: ${strength}
-改写逻辑: ${logic.join('、')}
+改写逻辑: ${logicText}
 目标字数: ${targetLength}
 切入角度: ${angle || '保持原角度'}
+结构模板: ${selectedStructure.name}
+
+${selectedStructure.template}
+
+【通用要求】
+1. 句式、词汇、段落顺序全部打散重组,不要只是换同义词
+2. 加入你自己的"看法"和"举例",但不能编造核心数据
+3. 标题也重新拟一个,符合"像人写的"标准,不要用原文标题的句式
+4. 不要用 Markdown 标题符号,纯文本段落,空行分隔
+5. 【重要】所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
+6. 段落之间用口语化连接词过渡（"其实""说白了""再比如""更关键的是"），绝不用"首先/其次/最后"
+
+【结构差异化检查】
+- 如果原文是"结论先行"开头，你必须用其他结构（故事/问题）开头
+- 如果原文段落是1-2-3-4顺序，你必须调整顺序为2-4-1-3或其他组合
+- 开头方式必须与原文不同：原文用提问→你用场景；原文用场景→你用结论；原文用结论→你用提问
 
 原文:
 """
 ${originalText}
-"""
-
-要求:
-1. 句式、词汇、段落顺序全部打散重组,不要只是换同义词。
-2. 加入你自己的"看法"和"举例",但不能编造核心数据。
-3. 标题也重新拟一个,符合"像人写的"标准。
-4. 不要用 Markdown 标题符号,纯文本段落,空行分隔。`;
+"""`;
 }
 
-export function buildUniversalPrompt({ text, strength, audience, keywords, tone, length, onlyDeAI }) {
+// 风格定义 - 真实区分度
+export const REWRITE_STYLES = {
+  专业分析: {
+    name: '专业分析型',
+    tone: '客观、理性、数据导向',
+    sentence: '以陈述句为主，多用"数据显示""研究表明"，少用感叹号',
+    example: '用逻辑链条（因为A所以B，如果X则Y）串联观点',
+    vocab: '偏正式但不生硬，可用行业术语，避免网络流行语'
+  },
+  经验分享: {
+    name: '经验分享型',
+    tone: '第一人称为主，像老师傅传授经验',
+    sentence: '多用"我发现""我试过""后来才明白"，带回顾感',
+    example: '每个观点后面跟一个自己踩过的坑或成功案例',
+    vocab: '口语化，可以有"说实话""坦白讲"，但不过度煽情'
+  },
+  故事叙述: {
+    name: '故事叙述型',
+    tone: '画面感强，像在讲一个完整的故事',
+    sentence: '多用场景描写（时间/地点/对话），句子有长有短营造节奏感',
+    example: '核心观点藏在故事转折点，不直接说教',
+    vocab: '生动具体，多用动词少用形容词，避免"非常""特别"这类修饰'
+  },
+  对话问答: {
+    name: '对话问答型',
+    tone: '像在回答读者的问题，一问一答',
+    sentence: '每段开头用"你可能会问""有人说""那怎么办"引出，然后解答',
+    example: '预设读者的疑问和反驳，逐一击破',
+    vocab: '用"你""咱们"拉近距离，多用反问和设问'
+  }
+};
+
+// 两阶段重组功能开关配置
+export const REWRITE_CONFIG = {
+  // 启用两阶段重组的改写强度（试点阶段）
+  enabledStrengths: ['深度', '彻底重写'],
+
+  // 全量上线后可改为: ['轻度', '中度', '深度', '彻底重写']
+  // 或设为 null 表示全部启用
+};
+
+// 检查是否启用两阶段重组
+function shouldUseDeepRewrite(strength) {
+  if (!REWRITE_CONFIG.enabledStrengths) return true; // null = 全部启用
+  return REWRITE_CONFIG.enabledStrengths.includes(strength);
+}
+
+export function buildUniversalPrompt({ text, strength, audience, keywords, tone, length, onlyDeAI, style, structure }) {
   let extra = '';
   if (audience && audience !== '通用') extra += `\n目标读者: ${audience}。`;
   if (keywords) extra += `\n必须保留这些核心关键词: ${keywords}。`;
-  if (tone) extra += `\n语气: 偏口语/轻松/朋友聊天,不要正式书面。`;
   if (length && length !== '保持原长度') extra += `\n长度: ${length}。`;
 
+  // 风格约束
+  let styleConstraint = '';
+  if (style && REWRITE_STYLES[style]) {
+    const s = REWRITE_STYLES[style];
+    styleConstraint = `\n【写作风格 - ${s.name}】必须严格遵守以下特征：
+- 语气基调: ${s.tone}
+- 句式特征: ${s.sentence}
+- 举例方式: ${s.example}
+- 用词风格: ${s.vocab}
+注意：全文必须保持该风格的一致性，不要中途切换语气`;
+  } else if (tone) {
+    styleConstraint = `\n语气: 偏口语/轻松/朋友聊天,不要正式书面。`;
+  }
+
+  // 仅降AI味：保持结构，只做语气润色
   if (onlyDeAI) {
     return `你只做一件事:把下面这段文字改得"完全不像 AI 写的",其他都不动(标题、结构、字数都保留)。
 其他要求:
 - 句式全部重排,不要保留原顺序
 - 加入口语连接词("其实""说白了""坦白讲"等)
 - 给具体数字、场景、个人感受
-- 删除所有"首先/其次/最后""综上所述"等套话${extra}
+- 删除所有"首先/其次/最后""综上所述"等套话${extra}${styleConstraint}
+- 【重要】所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
 
 原文:
 """
@@ -102,9 +271,47 @@ ${text}
 """`;
   }
 
-  return `请按以下规格改写这段文字:
+  // 检查是否启用两阶段重组（试点控制）
+  const useDeepRewrite = shouldUseDeepRewrite(strength);
+
+  if (!useDeepRewrite) {
+    // 旧版逻辑：轻度/中度改写保持原有简单模式
+    return `请按以下规格改写这段文字:
 - 改写强度: ${strength}
-${extra}
+${extra}${styleConstraint}
+- 【重要】所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
+
+原文:
+"""
+${text}
+"""`;
+  }
+
+  // 新版逻辑：深度/彻底重写采用两阶段提炼+重组
+  const selectedStructure = structure ? ARTICLE_STRUCTURES[structure] : getRandomStructure();
+
+  return `你是改写老手。请把下面这篇文章改写成"完全不像原版,但核心信息保留"的新版。
+
+【基础参数】
+改写强度: ${strength}
+目标结构: ${selectedStructure.name}
+${extra}${styleConstraint}
+
+${selectedStructure.template}
+
+【通用要求 - 严格遵守】
+1. 句式、词汇、段落顺序全部打散重组，不要只是换同义词
+2. 加入你自己的"看法"和"举例"，但不能编造核心数据
+3. 标题也重新拟一个，符合"像人写的"标准，不要用原文标题的句式
+4. 不要用 Markdown 标题符号，纯文本段落，空行分隔
+5. 【重要】所有人名、地名、机构名、品牌名、时间、地点、数据必须完全保持原样，一字不改
+6. 段落之间用口语化连接词过渡（"其实""说白了""再比如""更关键的是"），绝不用"首先/其次/最后"
+
+【结构差异化检查 - 必须执行】
+- 如果原文是"结论先行"开头，你必须用其他结构（故事/问题）开头
+- 如果原文段落是1-2-3-4顺序，你必须调整顺序为2-4-1-3或其他组合
+- 开头方式必须与原文不同：原文用提问→你用场景；原文用场景→你用结论；原文用结论→你用提问
+- 论据和案例的呈现顺序可以与原文不同，但事实信息（人名、时间、数据）必须准确
 
 原文:
 """
@@ -127,6 +334,9 @@ export const DEAI_STAGES = {
 - 绝对不能因为替换用词而导致字数增加
 - 如果改完后字数超过原文,必须精简其他部分
 
+【实体名保护 - 严格遵守】
+- 所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
+
 原文:
 """
 {TEXT}
@@ -146,6 +356,9 @@ export const DEAI_STAGES = {
 - 如果加了口语连接词导致超标,必须同时精简其他冗余表达
 - 字数控制优先级高于口语化程度
 
+【实体名保护 - 严格遵守】
+- 所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
+
 原文:
 """
 {TEXT}
@@ -164,6 +377,9 @@ export const DEAI_STAGES = {
 - 调句式是"重组",不是"扩写"
 - 总字数必须与原文持平(误差不超过 ±3%)
 - 绝对不能为了凑长句而加冗余内容
+
+【实体名保护 - 严格遵守】
+- 所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
 
 原文:
 """
@@ -185,6 +401,9 @@ export const DEAI_STAGES = {
 - 加具体案例时,必须同时删减原文中的抽象描述/冗余解释
 - 用"替换式扩写"而非"堆砌式扩写":加 1 个场景 = 删 1 段空话
 - 如果改完后超过 110%,必须回头精简到符合要求
+
+【实体名保护 - 严格遵守】
+- 所有人名、地名、机构名、品牌名必须完全保持原样,一字不改
 
 原文:
 """

@@ -10,6 +10,7 @@ import { fetchArticle } from './readability.js';
 import { scoreAI } from './scoring.js';
 import { config } from './config.js';
 import { buildOriginalPrompt, buildBatchRewritePrompt } from './prompts.js';
+import { checkSimilarity } from './similarity.js';
 
 // 单任务状态
 const ITEM_STATUS = {
@@ -322,7 +323,7 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
         task.cancelToken.throwIfCancelled();
 
         const source = cache.get(item.source);
-        const angleList = logics.length ? logics : ['不同角度重写'];
+        const angleList = (logics && logics.length) ? logics : ['不同角度重写'];
         const angle = angleList[item.angle % angleList.length];
         item.status = ITEM_STATUS.GENERATING;
         task.updatedAt = new Date().toISOString();
@@ -365,6 +366,24 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
         let body = text.trim();
         item.body = body;
         item.status = ITEM_STATUS.GENERATED;
+
+        task.cancelToken.throwIfCancelled();
+
+        // 相似度检测
+        const similarityReport = checkSimilarity(source.text, body);
+        item.similarity = {
+          score: similarityReport.overallScore,
+          structure: similarityReport.structureScore,
+          sentence: similarityReport.sentenceScore,
+          vocab: similarityReport.vocabScore,
+          passed: similarityReport.passed,
+          warnings: similarityReport.warnings
+        };
+
+        // 如果相似度过高，添加警告标记（但不阻止流程）
+        if (!similarityReport.passed) {
+          item.similarityWarning = `相似度${similarityReport.overallScore}%过高，建议重新生成`;
+        }
 
         task.cancelToken.throwIfCancelled();
 

@@ -872,9 +872,27 @@
 
     <div class="nav-section">
       <div class="nav-label">系统</div>
-      <div class="nav-item" data-view="keys">
+      <div class="nav-item" data-view="membership">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+        会员中心
+        <span class="badge" style="background: linear-gradient(135deg, #f59e0b, #ea580c);">VIP</span>
+      </div>
+      <div class="nav-item" data-view="wallet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        我的钱包
+      </div>
+      <div class="nav-item" data-view="model-account" style="display:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-        模型秘钥
+        大模型账号
+      </div>
+    </div>
+
+    <!-- 隐藏的原有模型秘钥页面，仅开发者可访问 -->
+    <div class="nav-section" style="display:none;" id="dev-only-section">
+      <div class="nav-label">开发者</div>
+      <div class="nav-item" data-view="keys" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        模型秘钥(旧)
       </div>
     </div>
 
@@ -1368,7 +1386,10 @@
     <section class="view" id="view-rewrite">
       <div class="tool-head">
         <h2>批量改写 <span class="tag tag-emerald" style="font-size:12px;padding:1px 8px;background:var(--emerald-soft);color:var(--emerald);border-radius:999px;margin-left:8px;vertical-align:middle;">1 → N 篇</span></h2>
-        <p style="margin-bottom:8px;"><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。支持链接抓取（公众号 / 头条 / 知乎）或直接粘贴原文。</p>
+        <p style="margin-bottom:8px;"><strong>1 篇原文 → 生成 N 个不同角度的改写版本</strong>，用于批量产出。支持链接抓取或直接粘贴原文。</p>
+        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400e;line-height:1.5;">
+          💡 <strong>抓取说明：</strong>能自动抓就自动抓，部分公众号文章因防护机制可能需要手动粘贴全文（系统会自动提示）
+        </div>
       </div>
 
       <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:0 0 12px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;line-height:1.5;">
@@ -1481,7 +1502,15 @@
     <section class="view" id="view-universal">
       <div class="tool-head">
         <h2>万能改写 <span class="tag" style="font-size:12px;padding:1px 8px;background:var(--amber-soft);color:#b45309;border-radius:999px;margin-left:8px;vertical-align:middle;">单篇精细</span></h2>
-        <p><strong>单篇精细处理</strong>：可单独调语气、控制长度、仅降 AI 味，<strong>不批量生成多篇</strong>。适合已经有一篇稿子,想精调成特定风格 / 长度 / 人味时用。</p>
+        <p><strong>单篇精细处理</strong>：深度重组文章结构和段落顺序，降低与原文的结构相似度。适合已有稿子，需要精调成特定风格/长度/人味时使用。</p>
+        <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:13px;line-height:1.6;">
+          <div style="font-weight:600;color:#b45309;margin-bottom:6px;">💡 重要说明</div>
+          <div style="color:#92400e;">
+            • <strong>结构重组</strong>：改写会调整段落顺序和开头方式，大幅降低结构相似度<br>
+            • <strong>风险提示</strong>：微信原创检测算法不公开，无法100%保证不被判定，但本功能可显著降低判定风险<br>
+            • <strong>建议</strong>：发布前人工检查段落顺序、论据位置是否与原文有明显差异
+          </div>
+        </div>
       </div>
 
       <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 0 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:13px;line-height:1.6;">
@@ -1521,6 +1550,27 @@
                 <option>职场人</option>
                 <option>宝妈</option>
                 <option>中老年</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>文章结构 <span style="font-size:11px;color:var(--muted);">(影响段落顺序)</span></label>
+              <select id="u-structure">
+                <option value="">随机选择（推荐）</option>
+                <option value="结论先行">结论先行型 - 开门见山给观点</option>
+                <option value="故事引入">故事引入型 - 场景/案例开头</option>
+                <option value="问题拆解">问题拆解型 - 问题→分析→方案</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>写作风格 <span style="font-size:11px;color:var(--muted);">(影响语气句式)</span></label>
+              <select id="u-style">
+                <option value="">默认</option>
+                <option value="专业分析">专业分析 - 理性数据导向</option>
+                <option value="经验分享">经验分享 - 第一人称传授</option>
+                <option value="故事叙述">故事叙述 - 画面感强</option>
+                <option value="对话问答">对话问答 - 一问一答式</option>
               </select>
             </div>
           </div>
@@ -1608,6 +1658,7 @@
               <label><input type="checkbox" id="l-emoji"><span>添加表情</span></label>
               <label><input type="checkbox" id="l-quote"><span>重点引用</span></label>
               <label><input type="checkbox" id="l-ai-off"><span>降 AI 味</span></label>
+              <label><input type="checkbox" id="l-image-suggest"><span>AI配图建议</span></label>
             </div>
           </div>
           <div class="panel-actions">
@@ -1720,6 +1771,206 @@
       </div>
     </section>
 
+    <!-- MEMBERSHIP VIEW 会员中心 -->
+    <section class="view" id="view-membership">
+      <div class="view-header">
+        <h2>会员中心</h2>
+        <p>开通会员，畅享全部功能</p>
+      </div>
+
+      <!-- 当前会员状态 -->
+      <div class="card" id="membership-status-card">
+        <div class="card-header">
+          <div class="card-title">当前会员状态</div>
+        </div>
+        <div class="card-body" id="membership-status">
+          <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+            加载中...
+          </div>
+        </div>
+      </div>
+
+      <!-- 会员档位 -->
+      <div style="margin-top:24px;">
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:16px;">选择会员档位</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;" id="membership-tiers">
+          <!-- 动态生成 -->
+        </div>
+      </div>
+
+      <div class="notice" style="margin-top:24px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong>支付功能开发中</strong>
+          <p>当前为内部测试模式，点击开通仅用于功能演示</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WALLET VIEW 钱包 -->
+    <section class="view" id="view-wallet">
+      <div class="view-header">
+        <h2>我的钱包</h2>
+        <p>余额管理与消费记录</p>
+      </div>
+
+      <!-- 余额卡片 -->
+      <div class="card">
+        <div class="card-body" style="text-align:center;padding:40px 20px;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">账户余额</div>
+          <div style="font-size:42px;font-weight:700;color:var(--primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" id="wallet-balance">
+            ¥0.00
+          </div>
+          <div style="margin-top:24px;">
+            <button class="btn btn-primary" onclick="showRechargeDialog()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              模拟充值
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notice" style="margin-top:16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong>当前为内部测试模拟充值，非真实支付</strong>
+        </div>
+      </div>
+
+      <!-- 消费记录 -->
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <div class="card-title">消费记录</div>
+        </div>
+        <div class="card-body" id="wallet-transactions">
+          <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+            暂无记录
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODEL ACCOUNT VIEW 大模型账号 -->
+    <section class="view" id="view-model-account">
+      <div class="view-header">
+        <h2>大模型账号</h2>
+        <p>配置您的AI模型访问权限</p>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div style="max-width:500px;margin:0 auto;padding:20px 0;">
+            <label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px;color:var(--text-2);">
+              大模型账号
+            </label>
+            <input
+              type="text"
+              id="model-account-input"
+              class="input"
+              placeholder="请输入你的大模型账号"
+              style="width:100%;margin-bottom:16px;"
+            />
+
+            <div style="display:flex;gap:12px;margin-bottom:24px;">
+              <button class="btn btn-primary" onclick="saveModelAccount()">
+                保存账号
+              </button>
+              <button class="btn" onclick="testModelAccount()">
+                测试连接
+              </button>
+            </div>
+
+            <div style="display:flex;gap:12px;">
+              <button class="btn" onclick="showCustomerService()" style="flex:1;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                联系客服
+              </button>
+              <button class="btn" onclick="showPurchaseDialog()" style="flex:1;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                购买密钥
+              </button>
+            </div>
+
+            <div class="notice" style="margin-top:24px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <strong>如何获取账号？</strong>
+                <p>1. 联系客服购买官方密钥<br>2. 或使用自己的API密钥</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN ACTIVATE VIEW 客服开通（隐藏入口） -->
+    <section class="view" id="view-admin-activate">
+      <div class="view-header">
+        <h2>客服手动开通</h2>
+        <p>为用户开通体验价会员</p>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div style="max-width:400px;margin:0 auto;padding:20px 0;">
+            <label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px;color:var(--text-2);">
+              联系方式 <span style="color:var(--primary);">*</span>
+            </label>
+            <input
+              type="text"
+              id="admin-activate-contact"
+              class="input"
+              placeholder="微信号/手机号/邮箱等"
+              style="width:100%;margin-bottom:16px;"
+            />
+
+            <label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px;color:var(--text-2);">
+              开通类型
+            </label>
+            <div style="margin-bottom:16px;">
+              <label style="display:block;margin-bottom:8px;cursor:pointer;">
+                <input type="radio" name="admin-activate-type" value="experience" checked onchange="toggleAdminActivateDays()">
+                <span style="margin-left:6px;">体验价1天（9.9元）</span>
+              </label>
+              <label style="display:block;cursor:pointer;">
+                <input type="radio" name="admin-activate-type" value="custom" onchange="toggleAdminActivateDays()">
+                <span style="margin-left:6px;">自定义天数</span>
+              </label>
+            </div>
+
+            <div id="admin-activate-days-wrapper" style="display:none;margin-bottom:16px;">
+              <label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px;color:var(--text-2);">
+                开通天数
+              </label>
+              <input
+                type="number"
+                id="admin-activate-days"
+                class="input"
+                value="1"
+                min="1"
+                style="width:100%;"
+              />
+            </div>
+
+            <button class="btn btn-primary" onclick="adminActivateMembership()" style="width:100%;">
+              立即开通
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <div class="card-title">最近开通记录</div>
+        </div>
+        <div class="card-body" id="admin-activate-history">
+          <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+            暂无记录
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1731,6 +1982,7 @@
 
 
 
+<script src="assets/membership.js"></script>
 <script type="module" src="assets/app.js"></script>
 
 </body>

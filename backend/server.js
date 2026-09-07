@@ -9,7 +9,10 @@ import generateRouter from './routes/generate.js';
 import tasksRouter from './routes/tasks.js';
 import fetchRouter from './routes/fetch.js';
 import metaRouter from './routes/meta.js';
+import membershipRouter from './routes/membership.js';
+import walletRouter from './routes/wallet.js';
 import './lib/keys.js'; // 触发主密钥初始化
+import './lib/db.js'; // 触发数据库初始化
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -69,6 +72,8 @@ app.use('/api', generateRouter);
 app.use('/api', tasksRouter);
 app.use('/api', fetchRouter);
 app.use('/api', metaRouter);
+app.use('/api', membershipRouter);
+app.use('/api', walletRouter);
 
 // 托管前端静态文件
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');

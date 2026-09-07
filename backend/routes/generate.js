@@ -7,6 +7,9 @@ import { estimateCost } from '../lib/cost.js';
 import { config } from '../lib/config.js';
 import { buildTitlePrompt, buildUniversalPrompt } from '../lib/prompts.js';
 import { isConfigured, getKey } from '../lib/keys.js';
+import { checkAccess, checkAndConsumeBalance } from '../lib/access.js';
+import { getMembership } from '../lib/db.js';
+import { processHotlinkImages } from '../lib/hotlink-protect.js';
 
 const router = Router();
 
@@ -23,41 +26,95 @@ function ensureKey(provider, res) {
 }
 
 // 1. 一键标题
-router.post('/title', async (req, res) => {
+router.post('/title', checkAccess, async (req, res) => {
   const { refs, count, domain, style, format, provider, demo } = req.body;
   const p = provider || config.providers.default_provider;
-  if (!demo && !ensureKey(p, res)) return;
+
   try {
+    // 自动演示模式或手动demo参数
+    const useDemo = demo || req.autoDemo;
+
+    // 非Demo模式且非会员，需要扣费
+    if (!useDemo && !req.membership.active) {
+      const cost = 0.02; // 一键标题成本约0.02元
+      const consumeResult = await checkAndConsumeBalance(cost, '一键标题生成');
+      if (!consumeResult.allowed) {
+        return res.status(403).json({
+          error: consumeResult.error,
+          code: 'INSUFFICIENT_BALANCE'
+        });
+      }
+    }
+
     const text = await chat({
       provider: p,
-      demo: !!demo,
+      demo: useDemo,
       messages: [{ role: 'user', content: buildTitlePrompt({ refs, count, domain, style, format }) }],
       temperature: 0.95, maxTokens: 1024
     });
     const titles = parseListOutput(text, count);
     res.json({ titles, cost: estimateCost({ provider: p, totalCount: 1, wordsPerItem: 0.5, withAIOff: false }) });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    // 友好错误提示
+    const friendlyMsg = e.message.includes('401') || e.message.includes('Unauthorized')
+      ? '模型服务暂时不可用，请稍后重试或联系客服'
+      : e.message.includes('timeout') || e.message.includes('超时')
+      ? '请求超时，请检查网络后重试'
+      : '生成失败，请重试或联系客服';
+    res.status(500).json({ error: friendlyMsg, detail: e.message });
   }
 });
 
 // 2. 万能改写(含"仅降 AI 味")
-router.post('/universal', async (req, res) => {
-  const { text, strength, audience, aiOff, keywords, tone, length, onlyDeAI, provider, demo } = req.body;
+router.post('/universal', checkAccess, async (req, res) => {
+  const { text, strength, audience, aiOff, keywords, tone, length, onlyDeAI, provider, demo, style, structure } = req.body;
   const p = provider || config.providers.default_provider;
-  if (!demo && !ensureKey(p, res)) return;
+
   try {
+    // 自动演示模式或手动demo参数
+    const useDemo = demo || req.autoDemo;
+
+    // 非Demo模式且非会员，需要扣费
+    if (!useDemo && !req.membership.active) {
+      const cost = 0.05; // 万能改写成本约0.05元
+      const consumeResult = await checkAndConsumeBalance(cost, '万能改写');
+      if (!consumeResult.allowed) {
+        return res.status(403).json({
+          error: consumeResult.error,
+          code: 'INSUFFICIENT_BALANCE'
+        });
+      }
+    }
+
+    // 处理防盗链图片
+    let workingText = text;
+    try {
+      workingText = await processHotlinkImages(text);
+    } catch (err) {
+      console.warn('[防盗链处理失败]', err.message);
+    }
+
     let finalText;
     if (onlyDeAI) {
-      const r = await runDeAI({ text, provider: p, demo: !!demo });
+      const r = await runDeAI({ text: workingText, provider: p, demo: useDemo });
       finalText = r.text;
     } else {
-      const prompt = buildUniversalPrompt({ text, strength, audience, keywords, tone, length, onlyDeAI: false });
+      const prompt = buildUniversalPrompt({
+        text: workingText,
+        strength,
+        audience,
+        keywords,
+        tone,
+        length,
+        onlyDeAI: false,
+        style,
+        structure
+      });
       const out = await chat({
         provider: p,
-        demo: !!demo,
+        demo: useDemo,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.85, maxTokens: Math.max(1024, Math.floor(text.length * 1.5))
+        temperature: 0.85, maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
       });
       finalText = out.trim();
       if (aiOff) {
@@ -68,17 +125,46 @@ router.post('/universal', async (req, res) => {
     const sc = scoreAI(finalText);
     res.json({ text: finalText, score: sc.score, level: sc.level, threshold: sc.threshold, passed: sc.passed });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    const friendlyMsg = e.message.includes('401') || e.message.includes('Unauthorized')
+      ? '模型服务暂时不可用，请稍后重试或联系客服'
+      : e.message.includes('timeout') || e.message.includes('超时')
+      ? '请求超时，请检查网络后重试'
+      : '改写失败，请重试或联系客服';
+    res.status(500).json({ error: friendlyMsg, detail: e.message });
   }
 });
 
 // 3. 一键排版
-router.post('/layout', async (req, res) => {
+router.post('/layout', checkAccess, async (req, res) => {
   const { text, style, size, line, withImages, withEmoji, withQuote, withAI, withAutoImages, provider } = req.body;
   const p = provider || config.providers.default_provider;
+
   try {
+    // 自动演示模式
+    const useDemo = req.autoDemo;
+
+    // 非演示模式且非会员且有AI处理，需要扣费
+    if (!useDemo && (withAI || withAutoImages) && !req.membership.active) {
+      const cost = withAutoImages ? 0.1 : 0.03; // AI配图更贵
+      const consumeResult = await checkAndConsumeBalance(cost, '一键排版');
+      if (!consumeResult.allowed) {
+        return res.status(403).json({
+          error: consumeResult.error,
+          code: 'INSUFFICIENT_BALANCE'
+        });
+      }
+    }
+
+    // 处理防盗链图片（微信公众号图片下载到本地）
     let working = text;
-    if (withAI && ensureKey(p, res)) {
+    try {
+      working = await processHotlinkImages(text);
+    } catch (err) {
+      console.warn('[防盗链处理失败]', err.message);
+      // 失败不影响排版流程
+    }
+
+    if (withAI) {
       const r = await runDeAI({ text: working, provider: p });
       working = r.text;
     }
@@ -135,7 +221,12 @@ router.post('/layout', async (req, res) => {
     const { html, title } = layoutText({ text: working, style, size, line, withImages, withEmoji, withQuote, imagePaths });
     res.json({ html, title, imageGenerated: imagePaths.length > 0 });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    const friendlyMsg = e.message.includes('401') || e.message.includes('Unauthorized')
+      ? '模型服务暂时不可用，请稍后重试或联系客服'
+      : e.message.includes('timeout') || e.message.includes('超时')
+      ? '请求超时，请检查网络后重试'
+      : '排版失败，请重试或联系客服';
+    res.status(500).json({ error: friendlyMsg, detail: e.message });
   }
 });
 

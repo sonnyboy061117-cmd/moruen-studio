@@ -19,7 +19,9 @@ let COST_TABLE = {};
 const crumbMap = {
   home: '首页概览', title: '一键标题', original: '批量原创',
   rewrite: '批量改写', universal: '万能改写',
-  layout: '一键排版', keys: '模型秘钥', tutorial: '使用教程'
+  layout: '一键排版', keys: '模型秘钥', tutorial: '使用教程',
+  membership: '会员中心', wallet: '我的钱包', 'model-account': '大模型账号',
+  'admin-activate': '客服手动开通'
 };
 
 function switchView(view) {
@@ -32,6 +34,17 @@ function switchView(view) {
   document.getElementById('crumbTitle').textContent = crumbMap[view] || '墨韵工坊';
   location.hash = '#/' + view;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 加载会员/钱包/模型账号数据
+  if (view === 'membership' && window.loadMembershipStatus) {
+    window.loadMembershipStatus();
+  } else if (view === 'wallet' && window.loadWalletInfo) {
+    window.loadWalletInfo();
+  } else if (view === 'model-account' && window.loadModelAccountStatus) {
+    window.loadModelAccountStatus();
+  } else if (view === 'admin-activate' && window.loadAdminActivateHistory) {
+    window.loadAdminActivateHistory();
+  }
 }
 window.switchView = switchView;
 
@@ -1303,6 +1316,21 @@ function renderTaskItems(task, prefix, total, { showSource }) {
     const body = it.body || it.error || '';
     const source = showSource && it.source ? `<span>🔗 ${it.source.slice(0, 36)}…</span>` : '';
     const scoreBadge = it.score != null ? `<span>🎯 AI 味 ${it.score}%</span>` : '';
+
+    // 相似度徽章
+    let similarityBadge = '';
+    if (it.similarity) {
+      const sim = it.similarity;
+      const color = sim.passed ? '#10b981' : '#f59e0b';
+      const icon = sim.passed ? '✓' : '⚠️';
+      similarityBadge = `<span style="color:${color};">${icon} 相似度 ${sim.score}%</span>`;
+
+      // 如果有警告，添加详细信息提示
+      if (it.similarityWarning) {
+        similarityBadge += `<span style="color:#f59e0b;font-size:11px;margin-left:6px;" title="${escape(it.similarityWarning)}">⚠ 建议重新生成</span>`;
+      }
+    }
+
     const isLong = body && body.length > 300;
 
     // 美化文章内容：段落分隔
@@ -1314,7 +1342,7 @@ function renderTaskItems(task, prefix, total, { showSource }) {
         <div class="result-title">${escape(title)} ${statusBadge(it.status)}</div>
         ${body ? `<div class="result-body" data-collapsed="${isLong ? '1' : '0'}" style="${isLong ? 'max-height:140px;overflow:hidden;mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);' : ''}">${formattedBody}</div>
                     ${isLong ? `<button class="btn btn-ghost btn-sm" data-act="expand" style="margin-top:8px;padding:2px 10px;font-size:12px;">展开全文 (${body.length} 字) ↓</button>` : ''}` : ''}
-        <div class="result-meta">${source} ${scoreBadge} ${it.error ? `<span style="color:var(--primary);">✗ ${escape(it.error)}</span>` : ''}</div>
+        <div class="result-meta">${source} ${scoreBadge} ${similarityBadge} ${it.error ? `<span style="color:var(--primary);">✗ ${escape(it.error)}</span>` : ''}</div>
         ${it.body ? `<div class="result-actions">
           <button class="btn btn-ghost btn-sm" data-act="copy">复制</button>
           ${showSource ? '<button class="btn btn-ghost btn-sm" data-act="toOriginal">→ 加入原创</button>' : '<button class="btn btn-ghost btn-sm" data-act="toLayout">→ 去排版</button>'}
@@ -1341,21 +1369,36 @@ async function universalRewrite() {
   const keywords = document.getElementById('u-keywords').checked;
   const tone = document.getElementById('u-tone').checked;
   const length = document.getElementById('u-length').checked ? '精简20%' : '保持原长度';
+  const style = document.getElementById('u-style').value || undefined;
+  const structure = document.getElementById('u-structure').value || undefined;
 
   const resultEl = document.getElementById('u-results');
   const countEl = document.getElementById('u-result-count');
-  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">改写中…</div>';
+  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">正在深度重组改写（预计30-60秒）...</div>';
   countEl.textContent = '改写中…';
   showProgress('u-progress');
   setProgress('u-progress', 20);
   try {
-    const r = await api.universal({ text, strength, audience, aiOff, keywords, tone, length, onlyDeAI: false, provider: PROVIDER_DEFAULT, demo: isDemo() });
+    const r = await api.universal({
+      text,
+      strength,
+      audience,
+      aiOff,
+      keywords,
+      tone,
+      length,
+      style,
+      structure,
+      onlyDeAI: false,
+      provider: PROVIDER_DEFAULT,
+      demo: isDemo()
+    });
     setProgress('u-progress', 100);
     const meta = `<span>📊 原创度 ${100 - r.score}%</span><span>🎯 AI 味 ${r.score}% ${r.passed ? '✓' : '⚠️'}</span><span>📏 ${r.text.length} 字</span>`;
     resultEl.innerHTML = `<div class="result-item">
       <div class="result-num">1</div>
       <div class="result-content">
-        <div class="result-title">${aiOff ? '改写 + 降 AI 味(4 阶段)' : '智能改写'}</div>
+        <div class="result-title">${aiOff ? '改写 + 降 AI 味(4 阶段)' : '深度重组改写'}</div>
         <div class="result-body">${r.text.split(/\n+/).map(p => `<p>${escape(p)}</p>`).join('')}</div>
         <div class="result-meta">${meta}</div>
         <div class="result-actions">
@@ -1365,7 +1408,7 @@ async function universalRewrite() {
       </div>
     </div>`;
     countEl.textContent = '1 篇';
-    bindUniversalActions({ title: aiOff ? '改写 + 降 AI 味' : '智能改写', body: r.text });
+    bindUniversalActions({ title: aiOff ? '改写 + 降 AI 味' : '深度重组改写', body: r.text });
     showToast('改写完成', 'success');
   } catch (e) {
     showToast(e.message, 'error');
@@ -1435,8 +1478,15 @@ async function layoutArticle(copyToClipboard = true) {
   const withEmoji = document.getElementById('l-emoji').checked;
   const withQuote = document.getElementById('l-quote').checked;
   const withAI = document.getElementById('l-ai-off').checked;
+  const withImageSuggest = document.getElementById('l-image-suggest').checked;
 
   const resultEl = document.getElementById('l-results');
+
+  // 如果勾选了AI配图建议，先生成关键词
+  if (withImageSuggest) {
+    await generateImageSuggestions(text);
+    return; // 只生成建议，不继续排版
+  }
 
   // 检查是否需要自动配图
   if (withAutoImages) {
@@ -1516,6 +1566,99 @@ async function layoutArticle(copyToClipboard = true) {
 }
 window.layoutArticle = layoutArticle;
 
+// 生成AI配图建议
+async function generateImageSuggestions(text) {
+  const resultEl = document.getElementById('l-results');
+  resultEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">正在分析文章生成配图建议...</div>';
+
+  try {
+    // 调用LLM分析文章，生成配图建议
+    const prompt = `请分析下面这篇文章，为其生成3-5个配图建议。对于每个配图位置，生成：
+1. 配图场景描述（一句话）
+2. 中文搜索关键词（3-5个词）
+3. 英文搜索关键词（适合Unsplash/Pexels）
+
+请以JSON格式返回，格式如下：
+[
+  {
+    "scene": "场景描述",
+    "keywords_cn": "关键词1 关键词2 关键词3",
+    "keywords_en": "keyword1 keyword2 keyword3"
+  }
+]
+
+文章内容：
+${text}`;
+
+    const response = await api.universal({
+      text: prompt,
+      strength: 'medium',
+      audience: 'general',
+      provider: PROVIDER_DEFAULT,
+      demo: isDemo()
+    });
+
+    // 尝试解析JSON
+    let suggestions = [];
+    try {
+      const jsonMatch = response.text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        suggestions = JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      // 解析失败，使用默认建议
+      suggestions = [
+        { scene: "文章主题相关图片", keywords_cn: "主题 概念 插图", keywords_en: "concept illustration design" }
+      ];
+    }
+
+    // 渲染配图建议
+    let html = '<div style="padding:20px;">';
+    html += '<h3 style="margin:0 0 16px 0;font-size:16px;color:var(--text);">📸 AI配图建议</h3>';
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">根据文章内容分析，建议在以下位置添加配图。点击按钮跳转到对应图库搜索：</div>';
+
+    suggestions.forEach((sug, idx) => {
+      const cnQuery = encodeURIComponent(sug.keywords_cn);
+      const enQuery = encodeURIComponent(sug.keywords_en);
+
+      html += `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-weight:600;margin-bottom:8px;color:var(--text);">${idx + 1}. ${sug.scene}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+            <div><strong>中文关键词：</strong>${sug.keywords_cn}</div>
+            <div><strong>英文关键词：</strong>${sug.keywords_en}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="https://cn.bing.com/images/search?q=${cnQuery}" target="_blank" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">
+              Bing 图片
+            </a>
+            <a href="https://unsplash.com/s/photos/${enQuery}" target="_blank" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">
+              Unsplash
+            </a>
+            <a href="https://www.pexels.com/search/${enQuery}" target="_blank" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">
+              Pexels
+            </a>
+            <a href="https://pixabay.com/images/search/${enQuery}" target="_blank" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">
+              Pixabay
+            </a>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '<div style="margin-top:16px;padding:12px;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:6px;font-size:12px;color:#0c4a6e;line-height:1.5;">';
+    html += '💡 <strong>使用提示：</strong>点击按钮跳转到图库网站，使用关键词搜索合适的图片，下载后插入到文章中。建议选择无版权限制的免费图片。';
+    html += '</div>';
+    html += '</div>';
+
+    resultEl.innerHTML = html;
+    showToast('配图建议已生成，点击按钮跳转图库搜索', 'success');
+  } catch (e) {
+    resultEl.innerHTML = '<div class="empty"><h4>生成失败</h4><p>' + e.message + '</p></div>';
+    showToast('生成配图建议失败: ' + e.message, 'error');
+  }
+}
+
 // 预览按钮：不复制到剪贴板
 function previewLayout() {
   layoutArticle(false);
@@ -1586,7 +1729,7 @@ async function init() {
   });
 
   // 先不切换页面，等 restoreActiveTasks 执行完
-  const m = location.hash.match(/#\/(\w+)/);
+  const m = location.hash.match(/#\/([\w-]+)/);
   const initialView = (m && document.getElementById('view-' + m[1])) ? m[1] : 'home';
 
   // 演示模式开关绑定(顶栏 + 秘钥页都同步)
@@ -1735,10 +1878,8 @@ async function init() {
   // 恢复活动任务(刷新后自动恢复进度)
   await restoreActiveTasks();
 
-  // 最后切换到初始页面（如果没有活动任务跳转到其他页面）
-  if (!location.hash || location.hash === '#/') {
-    switchView(initialView);
-  }
+  // 最后切换到初始页面
+  switchView(initialView);
 }
 
 // ========== 批量原创: 成本实时预估(顶层,供 initDrafts 调) ==========

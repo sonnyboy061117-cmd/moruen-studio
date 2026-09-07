@@ -1,7 +1,18 @@
 {
-  "_comment": "模型供应商配置,5 家(含1个图片生成)",
-  "default_provider": "deepseek",
+  "_comment": "模型供应商配置,6 家(含1个图片生成+1个中转站)",
+  "default_provider": "relay",
   "providers": {
+    "relay": {
+      "name": "平台统一中转",
+      "short": "中",
+      "base_url": "http://115.159.203.67:3000/v1/chat/completions",
+      "type": "openai",
+      "models": ["deepseek-chat"],
+      "default_model": "deepseek-chat",
+      "key_prefix": "",
+      "default_configured": true,
+      "cost_per_1k_tokens": 0.002
+    },
     "deepseek": {
       "name": "DeepSeek (深度求索)",
       "short": "深",

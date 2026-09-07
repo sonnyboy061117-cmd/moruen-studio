@@ -89,6 +89,11 @@ export function setKey(provider, plaintext) {
 }
 
 export function getKey(provider) {
+  // relay 供应商特殊处理：从环境变量读取
+  if (provider === 'relay') {
+    return process.env.RELAY_API_KEY || null;
+  }
+
   const data = readAll();
   if (!data.keys[provider]) return null;
   try {
@@ -122,6 +127,11 @@ export function listKeys() {
 }
 
 export function isConfigured(provider) {
+  // relay 供应商特殊处理：检查环境变量
+  if (provider === 'relay') {
+    return !!process.env.RELAY_API_KEY;
+  }
+
   const data = readAll();
   return !!data.keys[provider];
 }
