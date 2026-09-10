@@ -23,7 +23,20 @@ export class TaskPoller {
         if (t.status === 'done') { this.stop(); return; }
       } catch (e) {
         console.warn(`[poller ${this.taskId.slice(0, 8)}] tick#${this.tickCount} err:`, e.message);
-        this.onUpdate({ error: e.message });
+
+        // 如果是404任务不存在，停止轮询并给出友好提示
+        if (e.status === 404 || e.message.includes('任务不存在')) {
+          this.stop();
+          this.onUpdate({
+            status: 'lost',
+            error: '任务已丢失（可能因服务器重启），请重新提交任务',
+            items: []  // 确保有 items 数组，避免前端报错
+          });
+          return;
+        }
+
+        // 其他错误继续轮询，但传递安全的数据结构
+        this.onUpdate({ error: e.message, items: [], status: 'error' });
       }
       this.timer = setTimeout(tick, interval);
     };

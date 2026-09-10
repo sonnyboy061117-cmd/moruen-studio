@@ -9,11 +9,13 @@ let PROVIDER_DEFAULT = 'claude';
 // 访问密码(从页面弹窗录入后存到这里,reveal 二次验证用)
 let AUTH_USER = 'moruen';
 let AUTH_PASS = '';
-// 演示模式开关
-function isDemo() {
-  return localStorage.getItem('moruen.demo') === 'true';
-}
 let COST_TABLE = {};
+
+// 获取当前用户的 access_code
+function getAccessCode() {
+  return localStorage.getItem('moruen_access_code') || null;
+}
+window.getAccessCode = getAccessCode;
 
 // ========== 导航 ==========
 const crumbMap = {
@@ -465,33 +467,10 @@ function getActiveTasks() {
   } catch (e) { return {}; }
 }
 
-// 顶部状态条: 显示当前后台任务
+// 顶部状态条: 显示当前后台任务 (已禁用)
 function showActiveTaskBanner(type, total, onClick) {
-  let banner = document.getElementById('active-task-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'active-task-banner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#f59e0b,#ea580c);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(234,88,12,.4);cursor:pointer;animation:slideDown .3s ease;';
-    document.body.appendChild(banner);
-    // 加 slideDown 动画
-    if (!document.getElementById('banner-style')) {
-      const style = document.createElement('style');
-      style.id = 'banner-style';
-      style.textContent = '@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } } @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.9); } }';
-      document.head.appendChild(style);
-    }
-  }
-  const labelMap = { original: '批量原创', rewrite: '批量改写' };
-  banner.innerHTML = `
-    <span style="display:inline-block;width:10px;height:10px;background:#fff;border-radius:50%;animation:pulse 1.5s infinite;box-shadow:0 0 0 0 rgba(255,255,255,.7);"></span>
-    <span>📢 <strong>${labelMap[type] || type}</strong> 后台运行中 · 共 ${total} 篇</span>
-    <span style="opacity:.95;margin-left:auto;background:rgba(255,255,255,.2);padding:4px 12px;border-radius:14px;font-size:13px;">点击查看进度 →</span>
-  `;
-  banner.onclick = () => {
-    const map = getActiveTasks();
-    const t = map[type]?.task || { id: null, total };
-    onClick(t);
-  };
+  // 功能已禁用，不再显示橙色提示条
+  return;
 }
 
 async function restoreActiveTasks() {
@@ -991,7 +970,7 @@ async function generateTitles() {
   showProgress('t-progress');
   setProgress('t-progress', 15);
   try {
-    const r = await api.title({ refs, count, domain, style, format, provider: PROVIDER_DEFAULT, demo: isDemo() });
+    const r = await api.title({ refs, count, domain, style, format, provider: PROVIDER_DEFAULT });
     setProgress('t-progress', 100);
     countEl.textContent = r.titles.length + ' 条';
     resultEl.innerHTML = r.titles.map((t, i) => renderTitleItem(i + 1, t, style, format, r.cost)).join('');
@@ -1084,6 +1063,7 @@ async function generateOriginals() {
   const withFormat = document.getElementById('o-format').checked;
   const domain = Array.from(document.querySelectorAll('.checkbox-grid input[type="checkbox"]:checked')).map(c => c.value);
   const style = document.querySelector('[data-group="o-style"] .opt-btn.active')?.dataset.val || '干货';
+  const extraNote = document.getElementById('o-extra-note').value.trim().substring(0, 200);
 
   const total = topics.length * per;
   if (total > 120) { showToast('单次最多 120 篇', 'warn'); return; }
@@ -1104,7 +1084,8 @@ async function generateOriginals() {
   try {
     const r = await api.batchOriginal({
       topics, perTopic: per, length, domain, style, withImages, withAIOff, withFormat,
-      provider: PROVIDER_DEFAULT, concurrency: 16, demo: isDemo()
+      extraNote,
+      provider: PROVIDER_DEFAULT, concurrency: 16
     });
     currentOriginalTask = r.task;
     // 持久化 taskId(刷新后能恢复进度)
@@ -1178,7 +1159,7 @@ async function rewriteBatch() {
   try {
     const body = {
       count, strength, logics, targetLength,
-      provider: PROVIDER_DEFAULT, concurrency: 8, withAIOff: true, demo: isDemo()
+      provider: PROVIDER_DEFAULT, concurrency: 8, withAIOff: true
     };
     if (mode === 'url') body.urls = urls;
     else body.texts = texts;
@@ -1269,6 +1250,31 @@ function updateSingleCardContent(itemEl, updatedItem, idx, prefix, showSource) {
 
 // 任务状态渲染(原创 + 改写共用)
 function renderTaskItems(task, prefix, total, { showSource }) {
+  // 处理任务丢失情况
+  if (task.status === 'lost' || (task.error && task.error.includes('任务已丢失'))) {
+    const resultEl = document.getElementById(prefix + '-results');
+    const countEl = document.getElementById(prefix + '-result-count');
+    const cancelBtn = document.getElementById(prefix + '-cancel-btn');
+
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div style="padding:40px 20px;text-align:center;">
+          <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+          <h3 style="color:var(--text);margin-bottom:8px;">任务已丢失</h3>
+          <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">
+            ${task.error || '任务可能因服务器重启而丢失，请重新提交任务'}
+          </p>
+          <button class="btn btn-primary" onclick="location.reload()">刷新页面</button>
+        </div>
+      `;
+    }
+    if (countEl) countEl.textContent = '任务丢失';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    hideProgress(prefix + '-progress');
+    clearActiveTask(prefix === 'o' ? 'original' : 'rewrite');
+    return;
+  }
+
   const resultEl = document.getElementById(prefix + '-results');
   const countEl = document.getElementById(prefix + '-result-count');
   const cancelBtn = document.getElementById(prefix + '-cancel-btn');
@@ -1367,7 +1373,7 @@ function renderTaskItems(task, prefix, total, { showSource }) {
         try {
           await api.regenerateItem(taskId, idx, {
             provider: PROVIDER_DEFAULT,
-            demo: isDemo()
+            provider: PROVIDER_DEFAULT
           });
 
           // 只更新任务数据，不触发完整重渲染
@@ -1542,8 +1548,7 @@ async function universalRewrite() {
       style,
       structure,
       onlyDeAI: false,
-      provider: PROVIDER_DEFAULT,
-      demo: isDemo()
+      provider: PROVIDER_DEFAULT
     });
     setProgress('u-progress', 100);
     const meta = `<span>📊 原创度 ${100 - r.score}%</span><span>🎯 AI 味 ${r.score}% ${r.passed ? '✓' : '⚠️'}</span><span>📏 ${r.text.length} 字</span>`;
@@ -1580,7 +1585,7 @@ async function onlyDeAI() {
   showProgress('u-progress');
   setProgress('u-progress', 20);
   try {
-    const r = await api.universal({ text, onlyDeAI: true, provider: PROVIDER_DEFAULT, demo: isDemo() });
+    const r = await api.universal({ text, onlyDeAI: true, provider: PROVIDER_DEFAULT });
     setProgress('u-progress', 100);
     const meta = `<span>🎯 AI 味 ${r.score}% ${r.passed ? '✓' : '⚠️'}</span><span>📏 ${r.text.length} 字</span>`;
     resultEl.innerHTML = `<div class="result-item">
@@ -1667,8 +1672,7 @@ async function layoutArticle(copyToClipboard = true) {
     const r = await api.layout({
       text, style, size, line, withImages, withEmoji, withQuote, withAI,
       withAutoImages,
-      provider: PROVIDER_DEFAULT,
-      demo: isDemo()
+      provider: PROVIDER_DEFAULT
     });
 
     // 如果配图失败但排版成功，显示提示
@@ -1746,8 +1750,7 @@ ${text}`;
       text: prompt,
       strength: 'medium',
       audience: 'general',
-      provider: PROVIDER_DEFAULT,
-      demo: isDemo()
+      provider: PROVIDER_DEFAULT
     });
 
     // 尝试解析JSON
@@ -1875,6 +1878,39 @@ function bindOptBtns() {
 
 // ========== 初始化 ==========
 async function init() {
+  // 处理 access_code：检查 URL 中的 code 参数
+  // 支持两种格式: ?code=xxx#/home 或 #/home?code=xxx
+  let codeFromUrl = null;
+
+  // 优先检查 hash 后面的参数 (#/home?code=xxx)
+  if (location.hash.includes('?code=')) {
+    const hashParts = location.hash.split('?');
+    const params = new URLSearchParams(hashParts[1]);
+    codeFromUrl = params.get('code');
+    if (codeFromUrl) {
+      // 移除 hash 中的 code 参数
+      params.delete('code');
+      const newHash = hashParts[0] + (params.toString() ? '?' + params.toString() : '');
+      history.replaceState(null, '', location.pathname + location.search + newHash);
+    }
+  } else {
+    // 检查常规 query string (?code=xxx#/home)
+    const urlParams = new URLSearchParams(location.search);
+    codeFromUrl = urlParams.get('code');
+    if (codeFromUrl) {
+      // 移除 URL 中的 code 参数
+      urlParams.delete('code');
+      const newUrl = location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + location.hash;
+      history.replaceState(null, '', newUrl);
+    }
+  }
+
+  // 存入 localStorage
+  if (codeFromUrl) {
+    localStorage.setItem('moruen_access_code', codeFromUrl);
+    showToast('已识别您的专属访问码', 'success');
+  }
+
   bindOptBtns();
   document.querySelectorAll('.nav-item[data-view]').forEach(el => {
     el.addEventListener('click', () => switchView(el.dataset.view));
@@ -1884,44 +1920,6 @@ async function init() {
   const m = location.hash.match(/#\/([\w-]+)/);
   const initialView = (m && document.getElementById('view-' + m[1])) ? m[1] : 'home';
 
-  // 演示模式开关绑定(顶栏 + 秘钥页都同步)
-  const syncDemo = (on, src) => {
-    localStorage.setItem('moruen.demo', JSON.stringify(on));
-    const topbar = document.getElementById('topbar-demo-switch');
-    const inner = document.getElementById('demo-mode-switch');
-    if (topbar && topbar !== src) topbar.checked = on;
-    if (inner && inner !== src) {
-      inner.checked = on;
-      const track = inner.parentElement.querySelector('.switch-track');
-      const thumb = inner.parentElement.querySelector('.switch-thumb');
-      if (track) track.style.background = on ? 'var(--primary)' : '#ccc';
-      if (thumb) thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
-    }
-  };
-  const initDemo = (el, isTopbar) => {
-    el.checked = isDemo();
-    el.addEventListener('change', e => {
-      const on = e.target.checked;
-      syncDemo(on, e.target);
-      showToast(on ? '已开启演示模式(无 key 也能用)' : '已关闭演示模式', 'info');
-    });
-  };
-  const topbarDemo = document.getElementById('topbar-demo-switch');
-  if (topbarDemo) initDemo(topbarDemo, true);
-  const demoSwitch = document.getElementById('demo-mode-switch');
-  if (demoSwitch) {
-    demoSwitch.checked = isDemo();
-    const applyStyle = (on) => {
-      const track = demoSwitch.parentElement.querySelector('.switch-track');
-      const thumb = demoSwitch.parentElement.querySelector('.switch-thumb');
-      if (track) track.style.background = on ? 'var(--primary)' : '#ccc';
-      if (thumb) thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
-    };
-    applyStyle(demoSwitch.checked);
-    demoSwitch.addEventListener('change', e => {
-      syncDemo(e.target.checked, e.target);
-    });
-  }
 
   try {
     await loadMeta();

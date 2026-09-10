@@ -8,6 +8,54 @@ export const BASE_SYSTEM = `你是一位中文新媒体写作老手,擅长把"AI
 5. 标题党但不要低俗,好奇心前置。
 6. 输出纯文本,不要带 Markdown 标题符号(##、** 等)。`;
 
+// ============ 风格指令库：每个风格必须给出【骨架 + 开场方式 + 硬指标 + 禁项】 ============
+const STYLE_BLOCKS = {
+  干货: `
+【风格要求：干货型】
+1. 骨架固定为四段式：
+   痛点场景（≤80字，从一个具体使用场景切入，禁止"随着社会的发展"式开头）
+   → 方法清单（3~5条，每条必须包含：小标题 + 为什么有用（≤2句）+ 怎么做或1个具体例子/数字）
+   → 常见误区（1~2条，指出大多数人做错的地方）
+   → 行动清单（全文最后，3条以内，每条一句话可立即执行）
+2. 方法条数必须是 3~5 的奇偶混合随机数，小标题格式为"数字编号+短句"，如"1. 先定框架再填内容"
+3. 全文至少出现 2 个具体数字、例子或操作步骤，禁止空泛形容词（"非常""十分""各种"）
+4. 禁止抒情段落、个人情绪描写`,
+
+  故事: `
+【风格要求：故事型】
+1. 骨架固定为：具体场景开场（时间+地点+人物动作，可画面化，禁止总结式开头）
+   → 冲突或反常细节（人物遇到的具体麻烦）
+   → 推进（至少一处直接引语对话）
+   → 转折或结果
+   → 回落点题（≤全文10%，只许1~2句，禁止"这个故事告诉我们"）
+2. 全文至少 3 处感官细节（视觉/听觉/触觉任选），每处具体到可拍摄，如"蒸汽糊在眼镜上"而非"很温暖"
+3. 对话必须用引号直接呈现，不允许转述（"他说他觉得" → 改为直接引语）
+4. 禁止：说教、排比堆砌、抒情议论超过全文15%、给人物贴标签式形容词（"善良的""坚强的小李"）
+5. 点题句必须是画面或动作，不是道理`,
+
+  观点: `
+【风格要求：观点型】
+1. 开头第一段必须直接亮出核心判断句（"我认为/本质上/问题不在X，在Y"），禁止绕弯铺垫
+2. 骨架固定为：亮观点 → 先呈现反方最有力的理由（steelman，≥1条，不许稻草人）
+   → 逐条反驳或推进论证（2~3个论据，至少1个具体案例或数据，禁止连续两段都没有事实支撑）
+   → 承认观点的适用边界（1段，说明什么情况不成立）
+   → 收束为判断句或行动建议
+3. 全文设置 1~2 句"可单独转发的判断句"（≤20字，观点鲜明，单独看也成立），放在段首或段尾
+4. 禁止：和稀泥式两面话、人身攻击、未核实的绝对化数据、"这个问题见仁见智"式收尾`,
+
+  科普: `
+【风格要求：科普型】
+1. 开头用一个具体现象或读者心里的疑问切入（禁止从定义开始）
+2. 骨架固定为：现象/疑问钩子 → 核心概念一句话定义（≤30字，大白话）
+   → 原理拆解（必须用 1 个类比解释，类比取自日常生活经验，如"像…一样"）
+   → 常见误解（1条，先写大家以为的，再写实际研究表明的）
+   → 边界说明（这个结论在什么条件下不成立，1~2句）
+   → 一句总结（≤20字）
+3. 每个专业术语首次出现，必须紧跟一句白话解释
+4. 禁止：术语连续出现超过 2 个不解释、"绝对""一定""百分百"等绝对化表述（一律改为条件句）、编造研究数据（没有把握就写"多项研究指向"）`,
+};
+
+
 export function buildTitlePrompt({ refs, count, domain, style, format }) {
   return `你是一位公众号爆款标题老手。请基于下列参考标题,生成 ${count} 条新标题。
 领域:${domain}
@@ -33,26 +81,32 @@ ${refs || '(无,自由发挥)'}
 - 输出格式:每行一条,前面加序号 1./2./3.... 不要其他解释`;
 }
 
-export function buildOriginalPrompt({ topic, length, style, domain, withImages }) {
+export function buildOriginalPrompt({ topic, length, style, domain, withImages, extraNote }) {
+  // 获取风格指令块
+  const styleBlock = STYLE_BLOCKS[style];
+  if (!styleBlock) {
+    throw new Error(`未知风格: ${style}`);
+  }
+
   // 把"字数选项"转成"严格区间",抑制 LLM 长度漂移
   const range = getLengthRange(length);
-  return `请以"${topic}"为题,写一篇 ${domain} 领域 ${style} 类文章。
-${withImages ? '文中需要 1-2 处自然提到配图位置(用[配图]占位)。' : ''}
+  const extraSection = extraNote ? `\n【补充要求】\n${extraNote}\n` : '';
 
-【字数要求 - 严格遵守】
-- 目标字数:${length} 字
-- 允许范围:${range.min} - ${range.max} 字(下限不能少,上限不能超)
-- 写完后请自检:如果超出 ${range.max} 字必须精简;如果不到 ${range.min} 字必须扩写
-- 不要写"差不多就行",字数控制是硬指标
+  return `请围绕主题"${topic}"，写一篇 ${domain} 领域、${style} 类文章。
+${withImages ? '文中需要 1-2 处自然提到配图位置(用[配图]占位)。' : ''}${extraSection}
+【输出格式 - 严格遵守】
+第一行：文章标题（10-25字，要贴合正文实际内容和角度，不能直接照抄主题"${topic}"）
+第二行：空行
+第三行开始：正文内容
 
-【结构要求 - 严格遵守】
-- 必须按"开篇 → 主体(2-4 段) → 结尾"自然分段
-- 段与段之间必须用一个空行隔开(不要堆成一大段)
-- 每段 80-200 字,不要超长段落(超过 250 字必须断段)
-- 开篇用具体场景或反问切入,不要"随着社会的不断发展"这类套话
-- 中间给 2-3 个真实可信的例子,带具体数字/地点/时间
-- 结尾给出"明天就能做"的具体建议,不要"综上所述"
-- 像一位有阅历的朋友跟你聊天,语气自然`;
+${styleBlock}
+
+【通用要求】
+1. 字数要求：目标 ${length} 字，允许范围 ${range.min}-${range.max} 字（误差 ±15%），到点即收，不许为凑字数重复论述
+2. 全文禁止 AI 腔套话：包括但不限于"总而言之""综上所述""在当今社会""随着……的发展""希望对你有所帮助""让我们一起""值得注意的是"
+3. 段落长度：手机一屏内，最长不超过 6 行，段与段之间必须用一个空行隔开
+4. 围绕主题但不复述主题词：全文直接出现"${topic}"不超过 2 次
+5. 像一位有阅历的朋友跟你聊天，语气自然，不要说教`;
 }
 
 // 字数档位 -> 严格区间
@@ -308,6 +362,22 @@ export function getStructureByStyle(style) {
 export function buildBatchRewritePrompt({ originalText, strength, logic, targetLength, angle, structure, versionIndex = 0, usedOpenings = [] }) {
   const logicText = (logic && logic.length) ? logic.join('、') : '不同角度重写';
 
+  // 处理"保持原长度"：计算原文实际字数
+  let lengthRequirement;
+  if (targetLength === '保持原长度') {
+    const originalLength = originalText.length;
+    const tolerance = Math.round(originalLength * 0.15); // ±15%容差
+    const minLength = originalLength - tolerance;
+    const maxLength = originalLength + tolerance;
+    lengthRequirement = `目标字数：${originalLength} 字（严格控制在 ${minLength}-${maxLength} 字区间内）`;
+  } else if (targetLength && targetLength.includes('-')) {
+    // 固定区间，如"500-800"
+    const [min, max] = targetLength.split('-').map(n => parseInt(n.trim()));
+    lengthRequirement = `目标字数：严格控制在 ${min}-${max} 字之间`;
+  } else {
+    lengthRequirement = `目标字数：${targetLength}`;
+  }
+
   // 为三个版本强制分配不同的"素材取舍策略"，产生结构性差异
   const versionStrategies = [
     {
@@ -364,8 +434,16 @@ export function buildBatchRewritePrompt({ originalText, strength, logic, targetL
 【基础参数】
 改写强度: ${strength}
 改写逻辑: ${logicText}
-目标字数: ${targetLength}
 切入角度: ${angle || '保持原角度'}
+
+【字数要求 - 这是硬性要求，必须严格遵守】
+${lengthRequirement}
+⚠️ 字数控制说明：
+- 这是硬性要求，不是建议或参考值
+- 写作时请持续关注已写字数，接近上限时应该开始收尾
+- 不要在还剩很少篇幅时才发现内容没写完，导致匆忙收尾或超出限制
+- 写完后必须自检：字数是否在要求范围内？如果超出或不足，必须调整
+- 宁可内容精简一些，也不要为了凑字数而注水，更不要超出上限
 
 ${bannedOpenings}
 
@@ -446,10 +524,27 @@ function shouldUseDeepRewrite(strength) {
 }
 
 export function buildUniversalPrompt({ text, strength, audience, keywords, tone, length, onlyDeAI, style, structure }) {
+  // 处理字数要求
+  let lengthRequirement = '';
+  if (length && length !== '保持原长度') {
+    if (length.includes('-')) {
+      // 固定区间，如"500-800"
+      const [min, max] = length.split('-').map(n => parseInt(n.trim()));
+      lengthRequirement = `\n【字数要求 - 硬性要求】\n严格控制在 ${min}-${max} 字之间。这不是建议，是硬性要求。写作时请持续关注已写字数，接近上限时应该开始收尾，不要超出范围。`;
+    } else {
+      lengthRequirement = `\n【字数要求 - 硬性要求】\n${length}。这是硬性要求，写作时请注意控制篇幅。`;
+    }
+  } else if (length === '保持原长度') {
+    const originalLength = text.length;
+    const tolerance = Math.round(originalLength * 0.15); // ±15%容差
+    const minLength = originalLength - tolerance;
+    const maxLength = originalLength + tolerance;
+    lengthRequirement = `\n【字数要求 - 硬性要求】\n原文 ${originalLength} 字，改写后必须严格控制在 ${minLength}-${maxLength} 字区间内（±15%容差）。不要超出这个范围。`;
+  }
+
   let extra = '';
   if (audience && audience !== '通用') extra += `\n目标读者: ${audience}。`;
   if (keywords) extra += `\n必须保留这些核心关键词: ${keywords}。`;
-  if (length && length !== '保持原长度') extra += `\n长度: ${length}。`;
 
   // 风格约束
   let styleConstraint = '';
@@ -474,7 +569,7 @@ ${FACT_LOCKING_RULES}
 【轻度改写要求】
 - 段落数量、顺序、论证逻辑、案例位置与原文完全一致
 - 只做：去模板化用词、增加口语化表达、调整句式长短、去除机械感
-- 加入口语连接词("其实""说白了""坦白讲"等)
+- 加入口语连接词("其实""说白了"坦白讲"等)
 - 删除所有"首先/其次/最后""综上所述"等套话
 
 【轻度改写 - 严格禁止事项】
@@ -489,7 +584,7 @@ ${FACT_LOCKING_RULES}
 - 可以：把"非常好"改成"挺好的"、"但是"改成"可"
 - 可以：调整句子长短、改变表达顺序（同一句内部）
 - 不可以：凭空添加原文没有的具体数字、情节、对话、动作、观点
-
+${lengthRequirement}
 ${extra}${styleConstraint}
 
 原文:
@@ -522,6 +617,7 @@ ${FACT_LOCKING_RULES}
 - 不是只在开头做倒叙就够了，而是**整篇文章的段落顺序**都要打散重排
 - 如果原文是：引子 → 案例A → 案例B → 结论，改写不能是：倒叙开头 → 案例A → 案例B → 结论（后面三段还是原顺序）
 - 正确做法是：倒叙开头（包含结论部分） → 案例B → 引子 → 案例A，或其他实质性调整顺序的方式
+${lengthRequirement}
 
 【两阶段流程】
 第一阶段：提炼要点
@@ -576,6 +672,7 @@ ${FACT_LOCKING_RULES}
 ✅ 论证结构必须不同：原文是"${origStructureType}"，改写必须使用"${selectedStructure.name}"结构
 ✅ 开篇必须使用"倒叙式"或"反常识观点式"之一（不能用其他开篇方式）
 ✅ 至少新增1个原文没有的类比/个人视角/延伸案例段落（真正的原创内容，100字以上）
+${lengthRequirement}
 
 【内部提炼步骤（仅供你思考，不要输出）】
 从原文中提炼：
@@ -645,7 +742,7 @@ ${FACT_LOCKING_RULES}
   - 示例：如果原文讲"用行动修复信任"，你可以延伸到"为什么现代职场中信任修复变得更难"或"哪些场景下不适合用这种方法"
 
   ⚠️ 这两类段落必须清晰可辨，不能用原文信息拆分凑数
-
+${lengthRequirement}
 ${extra}${styleConstraint}
 
 【特别提醒】

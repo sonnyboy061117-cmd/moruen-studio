@@ -13,6 +13,52 @@ import { buildOriginalPrompt, buildBatchRewritePrompt } from './prompts.js';
 import { checkSimilarity } from './similarity.js';
 import { detectSuggestionEnding, getAntiSuggestionPrompt } from './suggestion-detector.js';
 
+// 清理过程性标签（防止泄露到最终结果）
+function cleanProcessTags(text) {
+  // 定义过程性词汇列表（可扩展）
+  const processKeywords = [
+    '改写后', '改写结果', '改写版本', '改写稿',
+    '最终版本', '最终稿', '完成版',
+    '原文', '原始文本',
+    '分析', '提炼', '重组', '成文',
+    '第一阶段', '第二阶段', '第三阶段', '第四阶段', '第五阶段',
+    '阶段一', '阶段二', '阶段三', '阶段四', '阶段五',
+    '步骤一', '步骤二', '步骤三',
+    '初稿', '修改稿', '定稿',
+    '输出结果', '生成结果',
+    '以下是', '内容如下'
+  ];
+
+  // 构建正则：匹配所有包含过程性词汇的【】标签
+  // 格式：【过程词汇】 或 【过程词汇：xxx】
+  const processPattern = new RegExp(
+    `【(?:${processKeywords.join('|')})(?:[:：][^】]*)?】\\s*`,
+    'gi'
+  );
+
+  let cleaned = text.replace(processPattern, '');
+
+  // 补充清理：单独成行的【2-8个中文字】短标签（可能是其他过程标签）
+  // 但保留常见的内容性标签（案例、方法、技巧、注意、提醒等）
+  const contentKeywords = ['案例', '方法', '技巧', '注意', '提醒', '重点', '关键', '核心', '总结', '建议', '要点'];
+  const contentPattern = new RegExp(`【(?:${contentKeywords.join('|')})】`, 'g');
+
+  // 匹配单独成行的短标签（前后都是换行或文本开头/结尾）
+  cleaned = cleaned.replace(/(?:^|\n)【[一-龥]{2,8}】(?:\s*\n|\s*$)/gm, function(match) {
+    // 如果是内容性标签，保留
+    if (contentPattern.test(match)) {
+      return match;
+    }
+    // 否则清理，但保留换行
+    return match.includes('\n') ? '\n' : '';
+  });
+
+  // 清理开头的冒号（有些AI会在清理标签后留下冒号）
+  cleaned = cleaned.replace(/^[:：]\s*/gm, '');
+
+  return cleaned.trim();
+}
+
 // 单任务状态
 const ITEM_STATUS = {
   PENDING: '待生成',
@@ -152,7 +198,7 @@ export function finishTask(taskId) {
 }
 
 // 跑批量原创任务
-export async function runBatchOriginal({ topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, provider, concurrency, demo = false, taskId = null }) {
+export async function runBatchOriginal({ topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, extraNote, provider, concurrency, demo = false, taskId = null }) {
   // 先建任务骨架(每个 item 用 topic#i 作为稳定 id,后续 update 直接用)
   const id = taskId || newId();
   const items = [];
@@ -193,7 +239,7 @@ export async function runBatchOriginal({ topics, perTopic, length, domain, style
             text = await chat({
               provider,
               demo,
-              messages: [{ role: 'user', content: buildOriginalPrompt({ topic: item.title, length, style, domain: selectedDomain, withImages }) }],
+              messages: [{ role: 'user', content: buildOriginalPrompt({ topic: item.title, length, style, domain: selectedDomain, withImages, extraNote }) }],
               temperature: 0.85,
               maxTokens: Math.max(1024, Math.floor(length * 2.5))
             });
@@ -215,6 +261,32 @@ export async function runBatchOriginal({ topics, perTopic, length, domain, style
         }
 
         let body = text.trim();
+        body = cleanProcessTags(body);
+
+        // 提取 AI 生成的标题（第一行）
+        const lines = body.split('\n');
+        let extractedTitle = '';
+        let contentStartIndex = 0;
+
+        if (lines.length > 0 && lines[0].trim().length > 0 && lines[0].trim().length <= 100) {
+          // 第一行作为标题（合理长度：不超过100字）
+          extractedTitle = lines[0].trim();
+          contentStartIndex = 1;
+
+          // 跳过标题后的空行
+          while (contentStartIndex < lines.length && lines[contentStartIndex].trim() === '') {
+            contentStartIndex++;
+          }
+
+          // 重组正文（不包含标题）
+          body = lines.slice(contentStartIndex).join('\n').trim();
+        }
+
+        // 如果成功提取到标题，更新 item.title
+        if (extractedTitle) {
+          item.title = extractedTitle;
+        }
+
         // 后端硬截断: 超出 length*1.3 强制截断,防止 LLM 跑偏
         const maxLen = Math.floor(length * 1.3);
         if (body.length > maxLen) {
@@ -223,6 +295,12 @@ export async function runBatchOriginal({ topics, perTopic, length, domain, style
           const lastP = Math.max(cut.lastIndexOf('。'), cut.lastIndexOf('\n'), cut.lastIndexOf('！'), cut.lastIndexOf('?'));
           body = (lastP > maxLen * 0.7 ? cut.slice(0, lastP + 1) : cut) + '\n\n(系统已根据字数设置自动截断,原文超出范围)';
         }
+
+        // 清理正文中的标题重复
+        if (item.title && body.trim().startsWith(item.title)) {
+          body = body.slice(item.title.length).trim();
+        }
+
         item.body = body;
         item.status = ITEM_STATUS.GENERATED;
 
@@ -232,6 +310,13 @@ export async function runBatchOriginal({ topics, perTopic, length, domain, style
           item.status = ITEM_STATUS.DEAI_RUNNING;
           const r = await runDeAI({ text: body, provider, demo });
           body = r.text;
+          body = cleanProcessTags(body);  // 降AI后再次清理标签
+
+          // 降AI后再次清理标题重复
+          if (item.title && body.trim().startsWith(item.title)) {
+            body = body.slice(item.title.length).trim();
+          }
+
           item.score = r.score;
           item.body = body;
           item.status = r.passed ? ITEM_STATUS.DEAI_OK : ITEM_STATUS.DEAI_FAIL;
@@ -380,6 +465,9 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
 
         let body = text.trim();
 
+        // 清理过程性标签
+        body = cleanProcessTags(body);
+
         // 建议段检测和重试机制（最多重试2次）
         let suggestionRetryCount = 0;
         const maxSuggestionRetries = 2;
@@ -416,6 +504,7 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
             });
 
             body = body.trim();
+            body = cleanProcessTags(body);
             suggestionDetection = detectSuggestionEnding(body);
 
             if (!suggestionDetection.hasSuggestion) {
@@ -443,8 +532,8 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
 
         task.cancelToken.throwIfCancelled();
 
-        // 相似度检测
-        const similarityReport = checkSimilarity(source.text, body);
+        // 相似度检测（传入改写强度）
+        const similarityReport = checkSimilarity(source.text, body, strength);
         item.similarity = {
           score: similarityReport.overallScore,
           structure: similarityReport.structureScore,
@@ -454,9 +543,18 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
           warnings: similarityReport.warnings
         };
 
-        // 如果相似度过高，添加警告标记（但不阻止流程）
+        // 根据改写强度生成不同的警告文案
         if (!similarityReport.passed) {
-          item.similarityWarning = `相似度${similarityReport.overallScore}%过高，建议重新生成`;
+          if (strength === '轻度') {
+            // 轻度改写：中性表述
+            item.similarityWarning = `相似度${similarityReport.overallScore}%（轻度改写正常范围内）`;
+          } else if (strength === '中度') {
+            // 中度改写：中性表述
+            item.similarityWarning = `相似度${similarityReport.overallScore}%（中度改写正常范围内）`;
+          } else {
+            // 深度改写：显示警示性文案
+            item.similarityWarning = `相似度${similarityReport.overallScore}%过高，建议重新生成`;
+          }
         }
 
         task.cancelToken.throwIfCancelled();
@@ -465,6 +563,7 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
           item.status = ITEM_STATUS.DEAI_RUNNING;
           const r = await runDeAI({ text: body, provider, demo });
           body = r.text;
+          body = cleanProcessTags(body);  // 降AI后再次清理标签
           item.score = r.score;
           item.body = body;
           item.status = r.passed ? ITEM_STATUS.DEAI_OK : ITEM_STATUS.DEAI_FAIL;
@@ -568,6 +667,7 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
     });
 
     let body = text.trim();
+    body = cleanProcessTags(body);
 
     // 建议段检测和重试机制（最多重试2次）
     let suggestionRetryCount = 0;
@@ -603,6 +703,7 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
         });
 
         body = retryText.trim();
+        body = cleanProcessTags(body);
         suggestionDetection = detectSuggestionEnding(body);
 
         if (!suggestionDetection.hasSuggestion) {
@@ -623,8 +724,8 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
     item.body = body;
     item.status = ITEM_STATUS.GENERATED;
 
-    // 相似度检测
-    const similarityReport = checkSimilarity(source.text, body);
+    // 相似度检测（传入改写强度）
+    const similarityReport = checkSimilarity(source.text, body, task.strength);
     item.similarity = {
       score: similarityReport.overallScore,
       structure: similarityReport.structureScore,
@@ -638,7 +739,7 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
     const sameSourceItems = task.items.filter(it => it.source === item.source && it !== item && it.body);
     if (sameSourceItems.length > 0) {
       const crossChecks = sameSourceItems.map(other => {
-        const crossReport = checkSimilarity(body, other.body);
+        const crossReport = checkSimilarity(body, other.body, task.strength);
         return {
           withIndex: task.items.indexOf(other),
           score: crossReport.overallScore,
@@ -650,6 +751,15 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
       if (maxCrossSim > 65) {
         item.similarityWarning = `与其他版本相似度 ${maxCrossSim}% 过高，建议重新生成`;
         item.similarity.passed = false;
+      }
+    } else if (!similarityReport.passed) {
+      // 只有在没有版本间相似度警告时，才显示与原文的相似度警告
+      if (task.strength === '轻度') {
+        item.similarityWarning = `相似度${similarityReport.overallScore}%（轻度改写正常范围内）`;
+      } else if (task.strength === '中度') {
+        item.similarityWarning = `相似度${similarityReport.overallScore}%（中度改写正常范围内）`;
+      } else {
+        item.similarityWarning = `相似度${similarityReport.overallScore}%过高，建议重新生成`;
       }
     }
 

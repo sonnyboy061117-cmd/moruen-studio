@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS membership (
   start_date TEXT NOT NULL,
   expire_date TEXT,
   contact TEXT,
+  access_code TEXT,
   created_at TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS membership (
 CREATE TABLE IF NOT EXISTS wallet (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   balance REAL NOT NULL DEFAULT 0,
+  access_code TEXT,
   updated_at TEXT DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -44,11 +46,9 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
   amount REAL NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('recharge', 'consume')),
   description TEXT NOT NULL,
+  access_code TEXT,
   created_at TEXT DEFAULT (datetime('now', 'localtime'))
 );
-
--- 初始化钱包记录（如果不存在）
-INSERT OR IGNORE INTO wallet (id, balance) VALUES (1, 0);
 `;
 
 // 执行建表
@@ -58,13 +58,47 @@ console.log('[DB] SQLite 初始化完成:', DB_PATH);
 
 // ==================== 会员相关 ====================
 
-// 获取当前会员状态
-export function getMembership() {
+// 生成随机8位access_code（字母+数字）
+function generateAccessCode() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+// 检查access_code是否已存在
+function isAccessCodeExists(code) {
+  const membershipExists = db.prepare('SELECT 1 FROM membership WHERE access_code = ? LIMIT 1').get(code);
+  const walletExists = db.prepare('SELECT 1 FROM wallet WHERE access_code = ? LIMIT 1').get(code);
+  return !!(membershipExists || walletExists);
+}
+
+// 生成唯一的access_code
+function generateUniqueAccessCode() {
+  let code;
+  let attempts = 0;
+  do {
+    code = generateAccessCode();
+    attempts++;
+    if (attempts > 100) throw new Error('生成access_code失败，重试次数过多');
+  } while (isAccessCodeExists(code));
+  return code;
+}
+
+// 获取当前会员状态（按access_code查询）
+export function getMembership(accessCode = null) {
+  if (!accessCode) {
+    return { active: false, tier: null, expireDate: null, activationType: null };
+  }
+
   const row = db.prepare(`
     SELECT * FROM membership
+    WHERE access_code = ?
     ORDER BY created_at DESC
     LIMIT 1
-  `).get();
+  `).get(accessCode);
 
   if (!row) {
     return { active: false, tier: null, expireDate: null, activationType: null };
@@ -103,13 +137,23 @@ export function activateMembership({ tier, price, activationType = 'normal', day
     expireDate = null; // 永久
   }
 
-  const stmt = db.prepare(`
-    INSERT INTO membership (tier, price, activation_type, start_date, expire_date, contact)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  // 生成唯一的access_code
+  const accessCode = generateUniqueAccessCode();
 
-  const result = stmt.run(tier, price, activationType, startDate, expireDate, contact);
-  return { id: result.lastInsertRowid, startDate, expireDate };
+  // 插入会员记录
+  const stmt = db.prepare(`
+    INSERT INTO membership (tier, price, activation_type, start_date, expire_date, contact, access_code)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  const result = stmt.run(tier, price, activationType, startDate, expireDate, contact, accessCode);
+
+  // 为该用户创建钱包记录（初始余额0）
+  db.prepare(`
+    INSERT INTO wallet (balance, access_code)
+    VALUES (0, ?)
+  `).run(accessCode);
+
+  return { id: result.lastInsertRowid, startDate, expireDate, accessCode };
 }
 
 // 获取最近开通记录
@@ -123,58 +167,75 @@ export function getMembershipHistory(limit = 20) {
 
 // ==================== 钱包相关 ====================
 
-// 获取余额
-export function getBalance() {
-  const row = db.prepare('SELECT balance FROM wallet WHERE id = 1').get();
+// 获取余额（按access_code查询）
+export function getBalance(accessCode = null) {
+  if (!accessCode) {
+    return 0;
+  }
+
+  const row = db.prepare('SELECT balance FROM wallet WHERE access_code = ?').get(accessCode);
   return row ? row.balance : 0;
 }
 
-// 充值
-export function recharge(amount, description = '模拟充值') {
+// 充值（按access_code）
+export function recharge(accessCode, amount, description = '模拟充值') {
+  if (!accessCode) {
+    throw new Error('access_code不能为空');
+  }
+
   const stmt = db.prepare(`
     UPDATE wallet SET balance = balance + ?, updated_at = datetime('now', 'localtime')
-    WHERE id = 1
+    WHERE access_code = ?
   `);
-  stmt.run(amount);
+  stmt.run(amount, accessCode);
 
   // 记录交易
   db.prepare(`
-    INSERT INTO wallet_transactions (amount, type, description)
-    VALUES (?, 'recharge', ?)
-  `).run(amount, description);
+    INSERT INTO wallet_transactions (amount, type, description, access_code)
+    VALUES (?, 'recharge', ?, ?)
+  `).run(amount, description, accessCode);
 
-  return getBalance();
+  return getBalance(accessCode);
 }
 
-// 消费（返回是否成功）
-export function consume(amount, description) {
-  const balance = getBalance();
+// 消费（按access_code，返回是否成功）
+export function consume(accessCode, amount, description) {
+  if (!accessCode) {
+    return { success: false, message: 'access_code不能为空', balance: 0 };
+  }
+
+  const balance = getBalance(accessCode);
   if (balance < amount) {
     return { success: false, message: '余额不足', balance };
   }
 
   const stmt = db.prepare(`
     UPDATE wallet SET balance = balance - ?, updated_at = datetime('now', 'localtime')
-    WHERE id = 1
+    WHERE access_code = ?
   `);
-  stmt.run(amount);
+  stmt.run(amount, accessCode);
 
   // 记录交易
   db.prepare(`
-    INSERT INTO wallet_transactions (amount, type, description)
-    VALUES (?, 'consume', ?)
-  `).run(-amount, description);
+    INSERT INTO wallet_transactions (amount, type, description, access_code)
+    VALUES (?, 'consume', ?, ?)
+  `).run(-amount, description, accessCode);
 
-  return { success: true, balance: getBalance() };
+  return { success: true, balance: getBalance(accessCode) };
 }
 
-// 获取交易记录
-export function getTransactions(limit = 50) {
+// 获取交易记录（按access_code查询）
+export function getTransactions(accessCode = null, limit = 50) {
+  if (!accessCode) {
+    return [];
+  }
+
   return db.prepare(`
     SELECT * FROM wallet_transactions
+    WHERE access_code = ?
     ORDER BY created_at DESC
     LIMIT ?
-  `).all(limit);
+  `).all(accessCode, limit);
 }
 
 export default db;
