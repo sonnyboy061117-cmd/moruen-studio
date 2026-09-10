@@ -11,6 +11,7 @@ import { checkAccess, checkAndConsumeBalance } from '../lib/access.js';
 import { getMembership } from '../lib/db.js';
 import { processHotlinkImages } from '../lib/hotlink-protect.js';
 import { validateFullRewrite } from '../lib/rewrite-validator.js';
+import { detectPrecisionFabrication, formatViolationReport } from '../lib/fabrication-detector.js';
 
 const router = Router();
 
@@ -200,6 +201,97 @@ router.post('/universal', checkAccess, async (req, res) => {
         finalText = r.text;
       }
     }
+
+    // 精确化检测与自动重试（所有改写强度都需要检测）
+    let fabricationRetry = 0;
+    const maxFabricationRetries = 2;
+    let fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p, demo: useDemo });
+
+    // 无条件日志：确认检测器被调用
+    console.log(`[编造检测完成] hasFabrication=${fabricationCheck.hasFabrication}, 违规数=${fabricationCheck.violations.length}`);
+    if (fabricationCheck.violations.length > 0) {
+      // 使用 util.inspect 确保中文正常显示
+      const util = await import('util');
+      console.log('[检测到的违规]', util.inspect(fabricationCheck.violations, { depth: null, colors: false, breakLength: Infinity }));
+    }
+
+    while (fabricationCheck.hasFabrication && fabricationRetry < maxFabricationRetries && !useDemo) {
+      fabricationRetry++;
+      const violationReport = formatViolationReport(fabricationCheck.violations);
+      console.warn(`[检测到内容编造问题，重新生成 ${fabricationRetry}/${maxFabricationRetries}]`, violationReport);
+
+      try {
+        // 构建重试prompt，明确指出上次的问题
+        let retryWarning = '\n\n⚠️ 上次生成存在以下问题，请重新生成并避免：\n';
+
+        fabricationCheck.violations.forEach(v => {
+          if (v.type === '数字精确化') {
+            retryWarning += '- 不要编造原文没有的精确数字（如精确时间、体温、时长等），保持原文的模糊程度\n';
+          } else if (v.type === '虚构情节') {
+            retryWarning += '- 不要编造原文没有的人物、事件、案例或类比，只改写原文已有的内容\n';
+          }
+        });
+
+        const retryPrompt = buildUniversalPrompt({
+          text: workingText,
+          strength,
+          audience,
+          keywords,
+          tone,
+          length,
+          onlyDeAI: false,
+          style,
+          structure
+        }) + retryWarning;
+
+        const retryOut = await chat({
+          provider: p,
+          demo: useDemo,
+          messages: [{ role: 'user', content: retryPrompt }],
+          temperature: 0.85,
+          maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
+        });
+
+        finalText = retryOut.trim();
+
+        // 如果有aiOff，重新降AI味
+        if (aiOff) {
+          const r = await runDeAI({ text: finalText, provider: p, demo: !!demo });
+          finalText = r.text;
+        }
+
+        // 重新检测
+        fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p, demo: useDemo });
+        if (!fabricationCheck.hasFabrication) {
+          console.log(`[内容编造检测通过，重试成功]`);
+          break;
+        }
+      } catch (retryError) {
+        console.error(`[编造检测重试失败]`, retryError.message);
+        break;
+      }
+
+      // 等待1秒后继续
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // 如果最终仍有违规，附加警告返回
+    if (fabricationCheck.hasFabrication) {
+      const violationReport = formatViolationReport(fabricationCheck.violations);
+      console.warn('[内容编造检测最终未通过]', violationReport);
+
+      const sc = scoreAI(finalText);
+      return res.json({
+        text: finalText,
+        score: sc.score,
+        level: sc.level,
+        threshold: sc.threshold,
+        passed: sc.passed,
+        warning: '本次生成可能包含编造内容，建议人工核对',
+        fabricationViolations: fabricationCheck.violations
+      });
+    }
+
     const sc = scoreAI(finalText);
     res.json({ text: finalText, score: sc.score, level: sc.level, threshold: sc.threshold, passed: sc.passed });
   } catch (e) {

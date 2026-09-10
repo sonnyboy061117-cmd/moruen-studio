@@ -1,4 +1,5 @@
-// 回归测试 - 验证4个修复问题都正常工作
+// 回归测试：验证修复后的4个问题
+import fetch from 'node-fetch';
 
 const testArticle = `如何成功挽回失去信任的资源方
 
@@ -20,34 +21,10 @@ const testArticle = `如何成功挽回失去信任的资源方
 
 新人在职场上常常会遇到这类问题，却很少有人告诉他们具体该怎么办。试错的代价太高，有时候一次失误就能毁掉一个重要的合作关系。所以我把小语的经验分享出来，希望能帮到更多人少走弯路。`;
 
-// 检查关键事实
-function checkKeyFacts(text, strength) {
-  const facts = {
-    '小语': text.includes('小语'),
-    '留学': text.includes('留学'),
-    '签证': text.includes('签证'),
-    '一个月或30天': text.includes('一个月') || text.includes('30天') || text.includes('三十天'),
-    '移民局': text.includes('移民局'),
-    '猕猴桃': text.includes('猕猴桃'),
-    '三年': text.includes('三年') || text.includes('3年'),
-  };
-
-  const preserved = Object.values(facts).filter(v => v).length;
-  const total = Object.keys(facts).length;
-
-  console.log(`  事实保留检查:`);
-  Object.entries(facts).forEach(([key, found]) => {
-    console.log(`    ${found ? '✓' : '✗'} ${key}`);
-  });
-  console.log(`  保留率: ${preserved}/${total} (${Math.round(preserved/total*100)}%)`);
-
-  return { preserved, total, allPreserved: preserved === total };
-}
-
-async function testStrength(strength, label, retryCount = 0) {
-  console.log(`\n${'═'.repeat(60)}`);
-  console.log(`测试：${label}${retryCount > 0 ? ` (重试 ${retryCount}/1)` : ''}`);
-  console.log(`${'═'.repeat(60)}\n`);
+async function testStrength(strength, label) {
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`测试 ${label} (${strength})`);
+  console.log('='.repeat(60));
 
   try {
     const response = await fetch('http://localhost:8787/api/universal', {
@@ -56,15 +33,8 @@ async function testStrength(strength, label, retryCount = 0) {
       body: JSON.stringify({
         text: testArticle,
         strength: strength,
-        audience: '通用',
-        aiOff: false,
-        keywords: true,
-        tone: false,
-        length: '保持原长度',
-        style: '经验分享',
-        structure: '',
-        onlyDeAI: strength === '仅降AI味',
-        provider: 'relay'
+        structure: '结论先行',
+        style: '真实案例风格'
       })
     });
 
@@ -72,62 +42,89 @@ async function testStrength(strength, label, retryCount = 0) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const result = await response.json();
+    const data = await response.json();
+    const result = data.text || '';
 
-    if (!result.text) {
-      console.error(`❌ 改写失败: ${result.error}`);
-      return false;
-    }
+    // 检查关键词保留
+    const hasKeywords = result.includes('留学') && 
+                       result.includes('资源方') && 
+                       result.includes('小语') && 
+                       result.includes('移民局');
+    
+    // 检查没有编造精确细节
+    const noFabrication = !result.match(/四个月|三个月|五个月/) &&
+                         !result.match(/39度|三十九度/) &&
+                         !result.match(/10[:：点]\d{2}/);
 
-    console.log(`✅ 改写成功`);
-    console.log(`  字数: ${result.text.length}`);
-    console.log(`  AI分数: ${result.score}`);
+    console.log(`✓ 返回结果长度: ${result.length} 字`);
+    console.log(`✓ 关键词保留: ${hasKeywords ? '正常' : '❌ 异常'}`);
+    console.log(`✓ 无编造细节: ${noFabrication ? '正常' : '❌ 异常'}`);
+    console.log(`✓ AI味分数: ${data.score}%`);
 
-    const factCheck = checkKeyFacts(result.text, strength);
-
-    if (strength === '完全重写' && !factCheck.allPreserved) {
-      console.log(`⚠️  警告: ${strength} 有事实丢失`);
-    }
-
-    return true;
-
-  } catch (error) {
-    console.error(`❌ 测试失败: ${error.message}`);
-
-    // 自动重试1次
-    if (retryCount === 0) {
-      console.log(`⏳ 1秒后自动重试...\n`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return testStrength(strength, label, 1);
-    }
-
+    return hasKeywords && noFabrication;
+  } catch (err) {
+    console.error(`❌ 测试失败: ${err.message}`);
     return false;
   }
 }
 
-async function runRegressionTests() {
-  console.log('🧪 回归测试 - 验证所有修复正常工作\n');
+async function testDeAI() {
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`测试 仅降AI味`);
+  console.log('='.repeat(60));
 
-  const results = {
-    '轻度（仅降AI味）': await testStrength('轻度', '轻度（仅降AI味）'),
-    '中度': await testStrength('中度', '中度'),
-    '深度': await testStrength('深度', '深度'),
-    '完全重写': await testStrength('完全重写', '完全重写')
-  };
+  try {
+    const response = await fetch('http://localhost:8787/api/universal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: testArticle,
+        onlyDeAI: true
+      })
+    });
 
-  console.log(`\n${'═'.repeat(60)}`);
-  console.log('📊 回归测试总结');
-  console.log(`${'═'.repeat(60)}\n`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  Object.entries(results).forEach(([name, passed]) => {
-    console.log(`  ${passed ? '✅' : '❌'} ${name}`);
-  });
+    const data = await response.json();
+    const result = data.text || '';
 
-  const allPassed = Object.values(results).every(v => v);
+    console.log(`✓ 返回结果长度: ${result.length} 字`);
+    console.log(`✓ AI味分数: ${data.score}%`);
+    console.log(`✓ 功能正常: 是`);
 
-  console.log(`\n${allPassed ? '✅ 所有测试通过，可以提交代码' : '❌ 有测试失败，请检查'}\n`);
-
-  return allPassed;
+    return true;
+  } catch (err) {
+    console.error(`❌ 测试失败: ${err.message}`);
+    return false;
+  }
 }
 
-runRegressionTests();
+async function runRegression() {
+  console.log('🧪 回归测试 - 验证4个问题修复');
+  console.log('测试时间:', new Date().toLocaleString('zh-CN'));
+
+  const results = {
+    medium: await testStrength('中度', '中度改写'),
+    deep: await testStrength('深度', '深度改写'),
+    complete: await testStrength('完全重写', '完全重写'),
+    deai: await testDeAI()
+  };
+
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('📊 回归测试结果');
+  console.log('='.repeat(60));
+  console.log(`中度改写: ${results.medium ? '✅ 通过' : '❌ 失败'}`);
+  console.log(`深度改写: ${results.deep ? '✅ 通过' : '❌ 失败'}`);
+  console.log(`完全重写: ${results.complete ? '✅ 通过' : '❌ 失败'}`);
+  console.log(`仅降AI味: ${results.deai ? '✅ 通过' : '❌ 失败'}`);
+
+  const allPassed = Object.values(results).every(r => r);
+  console.log(`\n总结: ${allPassed ? '✅ 所有测试通过' : '❌ 部分测试失败'}`);
+  console.log('='.repeat(60));
+
+  process.exit(allPassed ? 0 : 1);
+}
+
+runRegression();
