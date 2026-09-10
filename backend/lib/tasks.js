@@ -316,6 +316,9 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
 
   // 并发改写
   const jobs = [];
+  // 追踪每个源文章的已使用开篇词（按源分组）
+  const usedOpeningsBySource = new Map();
+
   for (const item of task.items) {
     if (item.status === ITEM_STATUS.FETCH_FAIL) continue;
     jobs.push(pool.run(async () => {
@@ -327,6 +330,12 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
         const angle = angleList[item.angle % angleList.length];
         item.status = ITEM_STATUS.GENERATING;
         task.updatedAt = new Date().toISOString();
+
+        // 获取当前源已使用的开篇词
+        if (!usedOpeningsBySource.has(item.source)) {
+          usedOpeningsBySource.set(item.source, []);
+        }
+        const usedOpenings = usedOpeningsBySource.get(item.source);
 
         // 重试机制：最多3次
         let lastError = null;
@@ -341,7 +350,12 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
               demo,
               messages: [{ role: 'user', content: buildBatchRewritePrompt({
                 originalText: source.text,
-                strength, logic: logics, targetLength, angle
+                strength,
+                logic: logics,
+                targetLength,
+                angle,
+                versionIndex: item.angle,  // 传入版本索引（0, 1, 2）
+                usedOpenings: usedOpenings  // 传入已使用的开篇词
               }) }],
               temperature: 0.85,
               maxTokens: Math.max(1024, Math.floor(source.text.length * 1.2))
@@ -364,6 +378,11 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
         }
 
         let body = text.trim();
+
+        // 提取开篇前6个字并记录
+        const opening = body.replace(/^【.*?】\s*/, '').substring(0, 6);
+        usedOpenings.push(opening);
+
         item.body = body;
         item.status = ITEM_STATUS.GENERATED;
 

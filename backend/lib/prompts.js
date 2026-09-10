@@ -305,11 +305,49 @@ export function getStructureByStyle(style) {
   return { key: structureKey, ...ARTICLE_STRUCTURES[structureKey] };
 }
 
-export function buildBatchRewritePrompt({ originalText, strength, logic, targetLength, angle, structure }) {
+export function buildBatchRewritePrompt({ originalText, strength, logic, targetLength, angle, structure, versionIndex = 0, usedOpenings = [] }) {
   const logicText = (logic && logic.length) ? logic.join('、') : '不同角度重写';
 
-  // 如果没有指定结构，随机选择一个
-  const selectedStructure = structure ? ARTICLE_STRUCTURES[structure] : getRandomStructure();
+  // 为三个版本强制分配不同的"素材取舍策略"，产生结构性差异
+  const versionStrategies = [
+    {
+      name: '版本1：完整叙述型（禁用建议段）',
+      constraint: `
+⚠️ 版本1 强制约束：
+- 允许：保留原文的完整故事线和时间顺序
+- 禁止：不得出现"新人建议""职场新人应该"这类总结建议段落
+- 必须：用疑问句或开放式思考收尾（如"这件事让你想到了什么？""你会怎么做？"）
+- 结构：按原文时间线展开，但结尾必须是疑问/思考，不能是建议清单
+      `
+    },
+    {
+      name: '版本2：倒叙突出结果型（删除建议段）',
+      constraint: `
+⚠️ 版本2 强制约束：
+- 必须：使用倒叙结构，先说结果或当下状态（如"三年后回头看""现在的小语"），再回溯起因
+- 禁止：不得按时间顺序A→B→C叙述，必须是结果→起因的倒叙逻辑
+- 禁止：不得出现"新人建议""职场新人应该"这类总结建议段落
+- 结构：开篇前50字必须体现"结果/现状"，然后回溯"为什么会这样"
+      `
+    },
+    {
+      name: '版本3：数据+核心情节型（禁用次要细节）',
+      constraint: `
+⚠️ 版本3 强制约束：
+- 必须：开篇前30字包含一个具体数据或普遍现象（格式示例："超过X成的职场人会遇到XX""每X个人中就有Y个经历过ZZ"）
+- 禁止：除了核心冲突情节（如本文的"移民局拒批+30天行动+结果"）外，不得保留其他故事细节
+- 禁止：不得出现"日常工作描述""双方如何认识"等铺垫性内容
+- 结构：数据开场（30字内） → 直奔核心冲突 → 解决方案 → 简短总结（不超过2句话）
+      `
+    }
+  ];
+
+  const strategy = versionStrategies[versionIndex % versionStrategies.length];
+
+  // 生成禁用开篇词列表（避免重复）
+  const bannedOpenings = usedOpenings.length > 0
+    ? `\n⚠️ 禁止使用以下开篇词汇（其他版本已使用）：${usedOpenings.join('、')}\n你的开篇前6个字必须与这些完全不同。`
+    : '';
 
   return `你是改写老手。请把下面这篇文章改写成"完全不像原版,但核心信息保留"的新版。
 
@@ -318,9 +356,18 @@ export function buildBatchRewritePrompt({ originalText, strength, logic, targetL
 改写逻辑: ${logicText}
 目标字数: ${targetLength}
 切入角度: ${angle || '保持原角度'}
-结构模板: ${selectedStructure.name}
 
-${selectedStructure.template}
+${bannedOpenings}
+
+【${strategy.name}】
+${strategy.constraint}
+
+${FACT_LOCKING_RULES}
+
+⚠️ **特别注意：模糊时长表达禁止精确化**
+- 原文如果是"好几个月""几个月""一阵子"等模糊时长，改写稿**严格禁止**改成"四个多月""7个月""小半年"等具体月数
+- 原文如果是"很久""不久"等模糊表达，改写稿**不得**出现具体天数、周数或月数
+- 核心原则：**模糊 → 模糊，精确 → 精确，绝不能 模糊 → 精确**
 
 【通用要求】
 1. 句式、词汇、段落顺序全部打散重组,不要只是换同义词
@@ -331,9 +378,9 @@ ${selectedStructure.template}
 6. 段落之间用口语化连接词过渡（"其实""说白了""再比如""更关键的是"），绝不用"首先/其次/最后"
 
 【结构差异化检查】
-- 如果原文是"结论先行"开头，你必须用其他结构（故事/问题）开头
-- 如果原文段落是1-2-3-4顺序，你必须调整顺序为2-4-1-3或其他组合
-- 开头方式必须与原文不同：原文用提问→你用场景；原文用场景→你用结论；原文用结论→你用提问
+- 你必须严格执行"${strategy.name}"的约束条件，不得使用其他版本的策略
+- 开头前6个字必须独特，不能与其他版本雷同
+- 如果你的版本被要求删除某个段落（如"新人建议"），最终稿中绝对不能出现该内容
 
 原文:
 """
