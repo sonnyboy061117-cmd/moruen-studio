@@ -412,7 +412,7 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
               demo,
               messages: [{ role: 'user', content: retryPrompt }],
               temperature: 0.85,
-              maxTokens: Math.max(1024, Math.floor(source.text.length * 1.2))
+              maxTokens: Math.max(2048, Math.floor(source.text.length * 1.5)) // 增加token限制，避免截断
             });
 
             body = body.trim();
@@ -423,6 +423,7 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
             }
           } catch (e) {
             console.log(`[建议段检测] 任务 ${task.id} 项 ${item.id} 重试失败: ${e.message}`);
+            if (e.stack) console.log(`[建议段检测] 错误堆栈:`, e.stack);
             break; // 重试失败，使用当前版本
           }
         }
