@@ -1210,6 +1210,63 @@ async function rewriteBatch() {
 }
 window.rewriteBatch = rewriteBatch;
 
+// 只更新单个卡片的内容，不触发整个列表重渲染
+function updateSingleCardContent(itemEl, updatedItem, idx, prefix, showSource) {
+  const contentDiv = itemEl.querySelector('.result-content');
+  if (!contentDiv) return;
+
+  // 移除加载遮罩
+  const loadingOverlay = contentDiv.querySelector('.regenerate-loading');
+  if (loadingOverlay) loadingOverlay.remove();
+
+  // 准备新内容
+  const title = updatedItem.title || (updatedItem.source ? updatedItem.source.slice(0, 30) + '…' : `篇 ${idx + 1}`);
+  const body = updatedItem.body || updatedItem.error || '';
+  const source = showSource && updatedItem.source ? `<span>🔗 ${updatedItem.source.slice(0, 36)}…</span>` : '';
+  const scoreBadge = updatedItem.score != null ? `<span>🎯 AI 味 ${updatedItem.score}%</span>` : '';
+
+  // 相似度徽章
+  let similarityBadge = '';
+  if (updatedItem.similarity) {
+    const sim = updatedItem.similarity;
+    const color = sim.passed ? '#10b981' : '#f59e0b';
+    const icon = sim.passed ? '✓' : '⚠️';
+    similarityBadge = `<span style="color:${color};">${icon} 相似度 ${sim.score}%</span>`;
+    if (updatedItem.similarityWarning) {
+      similarityBadge += `<span style="color:#f59e0b;font-size:11px;margin-left:6px;" title="${escape(updatedItem.similarityWarning)}">⚠ 建议重新生成</span>`;
+    }
+  }
+
+  // 重新生成按钮
+  const retryCount = updatedItem.retryCount || 0;
+  const maxRetries = 3;
+  let regenerateBtn = '';
+  if (prefix === 'r' && updatedItem.body) {
+    if (retryCount >= maxRetries) {
+      regenerateBtn = `<button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;cursor:not-allowed;">已达重试上限</button>`;
+    } else {
+      const btnStyle = updatedItem.similarityWarning ? 'color:#f59e0b;border-color:#f59e0b;' : 'opacity:0.7;';
+      regenerateBtn = `<button class="btn btn-ghost btn-sm" data-act="regenerate" style="${btnStyle}">🔄 重新生成 (${retryCount}/${maxRetries})</button>`;
+    }
+  }
+
+  const isLong = body && body.length > 300;
+  const formattedBody = body ? body.split('\n').filter(p => p.trim()).map(p => `<p style="margin-bottom:12px;line-height:1.8;">${escape(p.trim())}</p>`).join('') : '';
+
+  // 更新卡片内容（保持卡片本身和序号不变）
+  contentDiv.innerHTML = `
+    <div class="result-title">${escape(title)} ${statusBadge(updatedItem.status)}</div>
+    ${body ? `<div class="result-body" data-collapsed="${isLong ? '1' : '0'}" style="${isLong ? 'max-height:140px;overflow:hidden;mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);' : ''}">${formattedBody}</div>
+                ${isLong ? `<button class="btn btn-ghost btn-sm" data-act="expand" style="margin-top:8px;padding:2px 10px;font-size:12px;">展开全文 (${body.length} 字) ↓</button>` : ''}` : ''}
+    <div class="result-meta">${source} ${scoreBadge} ${similarityBadge} ${updatedItem.error ? `<span style="color:var(--primary);">✗ ${escape(updatedItem.error)}</span>` : ''}</div>
+    ${updatedItem.body ? `<div class="result-actions">
+      <button class="btn btn-ghost btn-sm" data-act="copy">复制</button>
+      ${showSource ? '<button class="btn btn-ghost btn-sm" data-act="toOriginal">→ 加入原创</button>' : '<button class="btn btn-ghost btn-sm" data-act="toLayout">→ 去排版</button>'}
+      ${regenerateBtn}
+    </div>` : ''}
+  `;
+}
+
 // 任务状态渲染(原创 + 改写共用)
 function renderTaskItems(task, prefix, total, { showSource }) {
   const resultEl = document.getElementById(prefix + '-results');
@@ -1285,29 +1342,61 @@ function renderTaskItems(task, prefix, total, { showSource }) {
           return;
         }
 
+        // 显示加载状态：给卡片添加遮罩层
+        const contentDiv = itemEl.querySelector('.result-content');
+        if (!contentDiv) return;
+
+        // 创建加载遮罩
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'regenerate-loading';
+        loadingOverlay.innerHTML = `
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:8px;">
+            <div style="text-align:center;">
+              <div style="width:40px;height:40px;border:3px solid #f3f3f3;border-top:3px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
+              <div style="color:var(--primary);font-weight:500;">重新生成中...</div>
+            </div>
+          </div>
+        `;
+        contentDiv.style.position = 'relative';
+        contentDiv.appendChild(loadingOverlay);
+
+        // 禁用按钮
         btn.disabled = true;
-        btn.textContent = '生成中...';
+        const originalBtnText = btn.textContent;
 
         try {
           await api.regenerateItem(taskId, idx, {
             provider: PROVIDER_DEFAULT,
             demo: isDemo()
           });
-          showToast('重新生成成功', 'success');
 
-          // 刷新任务状态
+          // 只更新任务数据，不触发完整重渲染
           const task = await api.task(taskId);
           if (prefix === 'r') {
             currentRewriteTask = task;
-            renderTaskItems(task, 'r', total, { showSource: false });
           } else if (prefix === 'o') {
             currentOriginalTask = task;
-            renderTaskItems(task, 'o', total, { showSource: true });
           }
+
+          // 更新缓存的 items
+          resultEl._lastItems = task.items;
+
+          // 只更新这一个卡片的内容
+          const updatedItem = task.items[idx];
+          if (updatedItem) {
+            updateSingleCardContent(itemEl, updatedItem, idx, prefix, showSource);
+          }
+
+          showToast('重新生成成功', 'success');
+
         } catch (error) {
           showToast(error.message, 'error');
+          // 移除遮罩
+          if (loadingOverlay && loadingOverlay.parentNode) {
+            loadingOverlay.remove();
+          }
           btn.disabled = false;
-          btn.textContent = '重新生成';
+          btn.textContent = originalBtnText;
         }
         return;
       }
