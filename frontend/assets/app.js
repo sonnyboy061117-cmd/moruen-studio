@@ -1265,7 +1265,7 @@ function renderTaskItems(task, prefix, total, { showSource }) {
   // 事件委托: resultEl 上只绑一次,后续重渲染不影响
   if (!resultEl.dataset.bound) {
     resultEl.dataset.bound = '1';
-    resultEl.addEventListener('click', (e) => {
+    resultEl.addEventListener('click', async (e) => {
       const btn = e.target.closest('button[data-act]');
       if (!btn) return;
       const itemEl = btn.closest('.result-item');
@@ -1273,7 +1273,46 @@ function renderTaskItems(task, prefix, total, { showSource }) {
       const idx = Array.from(resultEl.querySelectorAll('.result-item')).indexOf(itemEl);
       const it = (currentRewriteTask?.items || currentOriginalTask?.items || [])[idx]
                 || (resultEl._lastItems || [])[idx];
-      if (!it || !it.body) return;
+      if (!it) return;
+
+      // 处理重新生成
+      if (btn.dataset.act === 'regenerate') {
+        if (btn.disabled) return;
+
+        const taskId = currentRewriteTask?.id || currentOriginalTask?.id;
+        if (!taskId) {
+          showToast('任务ID丢失，请刷新页面', 'error');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+
+        try {
+          await api.regenerateItem(taskId, idx, {
+            provider: PROVIDER_DEFAULT,
+            demo: isDemo()
+          });
+          showToast('重新生成成功', 'success');
+
+          // 刷新任务状态
+          const task = await api.task(taskId);
+          if (prefix === 'r') {
+            currentRewriteTask = task;
+            renderTaskItems(task, 'r', total, { showSource: false });
+          } else if (prefix === 'o') {
+            currentOriginalTask = task;
+            renderTaskItems(task, 'o', total, { showSource: true });
+          }
+        } catch (error) {
+          showToast(error.message, 'error');
+          btn.disabled = false;
+          btn.textContent = '重新生成';
+        }
+        return;
+      }
+
+      if (!it.body) return;
       if (btn.dataset.act === 'copy') {
         copyText(`${it.title || ''}\n\n${it.body}`, btn);
       } else if (btn.dataset.act === 'expand') {
@@ -1331,6 +1370,19 @@ function renderTaskItems(task, prefix, total, { showSource }) {
       }
     }
 
+    // 重新生成按钮（仅批量改写任务显示）
+    const retryCount = it.retryCount || 0;
+    const maxRetries = 3;
+    let regenerateBtn = '';
+    if (prefix === 'r' && it.body) {  // 只在批量改写且已生成内容时显示
+      if (retryCount >= maxRetries) {
+        regenerateBtn = `<button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;cursor:not-allowed;">已达重试上限</button>`;
+      } else {
+        const btnStyle = it.similarityWarning ? 'color:#f59e0b;border-color:#f59e0b;' : 'opacity:0.7;';
+        regenerateBtn = `<button class="btn btn-ghost btn-sm" data-act="regenerate" style="${btnStyle}">🔄 重新生成 (${retryCount}/${maxRetries})</button>`;
+      }
+    }
+
     const isLong = body && body.length > 300;
 
     // 美化文章内容：段落分隔
@@ -1346,6 +1398,7 @@ function renderTaskItems(task, prefix, total, { showSource }) {
         ${it.body ? `<div class="result-actions">
           <button class="btn btn-ghost btn-sm" data-act="copy">复制</button>
           ${showSource ? '<button class="btn btn-ghost btn-sm" data-act="toOriginal">→ 加入原创</button>' : '<button class="btn btn-ghost btn-sm" data-act="toLayout">→ 去排版</button>'}
+          ${regenerateBtn}
         </div>` : ''}
       </div>
     </div>`;

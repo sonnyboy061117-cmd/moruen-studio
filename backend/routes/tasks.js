@@ -1,6 +1,6 @@
 // 墨韵工坊 · 批量任务路由
 import { Router } from 'express';
-import { runBatchOriginal, runBatchRewrite, getTask, listTasks, cancelTask, ITEM_STATUS } from '../lib/tasks.js';
+import { runBatchOriginal, runBatchRewrite, getTask, listTasks, cancelTask, regenerateSingleItem, ITEM_STATUS } from '../lib/tasks.js';
 import { config } from '../lib/config.js';
 import { isConfigured } from '../lib/keys.js';
 import { checkAccess, checkAndConsumeBalance } from '../lib/access.js';
@@ -99,6 +99,45 @@ router.post('/tasks/:id/cancel', (req, res) => {
 
 router.get('/status-enum', (req, res) => {
   res.json(ITEM_STATUS);
+});
+
+// 重新生成单篇文章
+router.post('/tasks/:id/items/:index/regenerate', checkAccess, async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const itemIndex = parseInt(index);
+
+    if (isNaN(itemIndex) || itemIndex < 0) {
+      return res.status(400).json({ error: '无效的文章索引' });
+    }
+
+    const { provider, demo } = req.body;
+    const p = provider || config.providers.default_provider;
+    const useDemo = demo || req.autoDemo;
+
+    // 非Demo模式且非会员，需要扣费（单篇重新生成约0.08元）
+    if (!useDemo && !req.membership.active) {
+      const cost = 0.08;
+      const consumeResult = await checkAndConsumeBalance(cost, `重新生成单篇`);
+      if (!consumeResult.allowed) {
+        return res.status(403).json({
+          error: consumeResult.error,
+          code: 'INSUFFICIENT_BALANCE'
+        });
+      }
+    }
+
+    const result = await regenerateSingleItem({
+      taskId: id,
+      itemIndex,
+      provider: p,
+      demo: useDemo
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 export default router;

@@ -442,4 +442,123 @@ function updateItemByCondition(task, pred, patch) {
   task.updatedAt = new Date().toISOString();
 }
 
+// 重新生成单篇文章
+export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }) {
+  const task = tasks.get(taskId);
+  if (!task) throw new Error('任务不存在');
+  if (!task.items[itemIndex]) throw new Error('文章索引无效');
+
+  const item = task.items[itemIndex];
+
+  // 检查重试次数限制
+  if (!item.retryCount) item.retryCount = 0;
+  if (item.retryCount >= 3) {
+    throw new Error('已达到最大重试次数(3次)');
+  }
+
+  // 获取源文本
+  const cache = new Map();
+  if (task.type === 'rewrite') {
+    // 对于批量改写，需要从 item.sourceText 或重新抓取
+    if (item.sourceText) {
+      cache.set(item.source, { text: item.sourceText, title: item.title });
+    } else if (item.source.startsWith('http')) {
+      const f = await fetchArticle(item.source);
+      if (!f.ok) throw new Error(f.message);
+      cache.set(item.source, { text: f.text, title: f.title });
+    } else {
+      cache.set(item.source, { text: item.source, title: '' });
+    }
+  } else {
+    throw new Error('不支持的任务类型');
+  }
+
+  const source = cache.get(item.source);
+  if (!source) throw new Error('未找到源文章');
+
+  // 收集同源的其他已生成文章的开篇词
+  const usedOpenings = task.items
+    .filter(it => it.source === item.source && it !== item && it.body)
+    .map(it => {
+      const opening = it.body.replace(/^【.*?】\s*/, '').substring(0, 6);
+      return opening;
+    });
+
+  // 获取任务参数
+  const { strength, logics, targetLength } = task.meta || {};
+  const angleList = (logics && logics.length) ? logics : ['不同角度重写'];
+  const angle = angleList[item.angle % angleList.length];
+
+  // 标记为生成中
+  item.status = ITEM_STATUS.GENERATING;
+  item.error = null;
+  task.updatedAt = new Date().toISOString();
+
+  try {
+    // 调用 LLM 生成
+    const text = await chat({
+      provider,
+      demo,
+      messages: [{ role: 'user', content: buildBatchRewritePrompt({
+        originalText: source.text,
+        strength,
+        logic: logics,
+        targetLength,
+        angle,
+        versionIndex: item.angle,  // 保持原来的版本索引
+        usedOpenings: usedOpenings  // 传入其他版本已使用的开篇词
+      }) }],
+      temperature: 0.85,
+      maxTokens: Math.max(1024, Math.floor(source.text.length * 1.2))
+    });
+
+    let body = text.trim();
+    item.body = body;
+    item.status = ITEM_STATUS.GENERATED;
+
+    // 相似度检测
+    const similarityReport = checkSimilarity(source.text, body);
+    item.similarity = {
+      score: similarityReport.overallScore,
+      structure: similarityReport.structureScore,
+      sentence: similarityReport.sentenceScore,
+      vocab: similarityReport.vocabScore,
+      passed: similarityReport.passed,
+      warnings: similarityReport.warnings
+    };
+
+    // 检查与同源其他版本的相似度
+    const sameSourceItems = task.items.filter(it => it.source === item.source && it !== item && it.body);
+    if (sameSourceItems.length > 0) {
+      const crossChecks = sameSourceItems.map(other => {
+        const crossReport = checkSimilarity(body, other.body);
+        return {
+          withIndex: task.items.indexOf(other),
+          score: crossReport.overallScore,
+          passed: crossReport.passed
+        };
+      });
+
+      const maxCrossSim = Math.max(...crossChecks.map(c => c.score));
+      if (maxCrossSim > 65) {
+        item.similarityWarning = `与其他版本相似度 ${maxCrossSim}% 过高，建议重新生成`;
+        item.similarity.passed = false;
+      }
+    }
+
+    // 增加重试计数
+    item.retryCount = (item.retryCount || 0) + 1;
+    task.updatedAt = new Date().toISOString();
+
+    return { success: true, item };
+
+  } catch (error) {
+    item.status = ITEM_STATUS.GEN_FAIL;
+    item.error = error.message;
+    item.retryCount = (item.retryCount || 0) + 1;
+    task.updatedAt = new Date().toISOString();
+    throw error;
+  }
+}
+
 export { ITEM_STATUS };

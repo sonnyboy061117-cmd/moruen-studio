@@ -49,6 +49,7 @@ export const api = {
   task: (id) => req('/api/tasks/' + id),
   tasks: () => req('/api/tasks'),
   cancelTask: (id, reason) => req('/api/tasks/' + id + '/cancel', { method: 'POST', body: { reason } }),
+  regenerateItem: (taskId, itemIndex, body) => req('/api/tasks/' + taskId + '/items/' + itemIndex + '/regenerate', { method: 'POST', body }),
 
   // 链接抓取
   fetchArticle: (url) => req('/api/fetch', { method: 'POST', body: { url } })
