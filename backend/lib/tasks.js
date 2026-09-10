@@ -11,6 +11,7 @@ import { scoreAI } from './scoring.js';
 import { config } from './config.js';
 import { buildOriginalPrompt, buildBatchRewritePrompt } from './prompts.js';
 import { checkSimilarity } from './similarity.js';
+import { detectSuggestionEnding, getAntiSuggestionPrompt } from './suggestion-detector.js';
 
 // 单任务状态
 const ITEM_STATUS = {
@@ -379,6 +380,59 @@ export async function runBatchRewrite({ sources, urls, count, strength, logics, 
 
         let body = text.trim();
 
+        // 建议段检测和重试机制（最多重试2次）
+        let suggestionRetryCount = 0;
+        const maxSuggestionRetries = 2;
+        let suggestionDetection = detectSuggestionEnding(body);
+
+        while (suggestionDetection.hasSuggestion && suggestionRetryCount < maxSuggestionRetries) {
+          suggestionRetryCount++;
+          console.log(`[建议段检测] 任务 ${task.id} 项 ${item.id} 检测到建议段，第 ${suggestionRetryCount} 次重试`);
+          console.log(`  - 匹配模式: ${suggestionDetection.matchedPatterns.join(', ')}`);
+          console.log(`  - 检测到的句子:`);
+          suggestionDetection.detectedSentences.forEach(s => console.log(`    * ${s}`));
+
+          task.cancelToken.throwIfCancelled();
+
+          // 重新生成，强化反建议段约束
+          try {
+            const antiSuggestionPrompt = getAntiSuggestionPrompt();
+            const retryPrompt = buildBatchRewritePrompt({
+              originalText: source.text,
+              strength,
+              logic: logics,
+              targetLength,
+              angle,
+              versionIndex: item.angle,
+              usedOpenings: usedOpenings
+            }) + antiSuggestionPrompt;
+
+            body = await chat({
+              provider,
+              demo,
+              messages: [{ role: 'user', content: retryPrompt }],
+              temperature: 0.85,
+              maxTokens: Math.max(1024, Math.floor(source.text.length * 1.2))
+            });
+
+            body = body.trim();
+            suggestionDetection = detectSuggestionEnding(body);
+
+            if (!suggestionDetection.hasSuggestion) {
+              console.log(`[建议段检测] 任务 ${task.id} 项 ${item.id} 重试成功，已消除建议段`);
+            }
+          } catch (e) {
+            console.log(`[建议段检测] 任务 ${task.id} 项 ${item.id} 重试失败: ${e.message}`);
+            break; // 重试失败，使用当前版本
+          }
+        }
+
+        // 如果重试2次后依然有建议段，添加警告标记
+        if (suggestionDetection.hasSuggestion) {
+          console.log(`[建议段检测] 任务 ${task.id} 项 ${item.id} 达到最大重试次数，依然包含建议段`);
+          item.suggestionWarning = `检测到疑似建议段：${suggestionDetection.detectedSentences[0]?.substring(0, 30)}...`;
+        }
+
         // 提取开篇前6个字并记录
         const opening = body.replace(/^【.*?】\s*/, '').substring(0, 6);
         usedOpenings.push(opening);
@@ -513,6 +567,58 @@ export async function regenerateSingleItem({ taskId, itemIndex, provider, demo }
     });
 
     let body = text.trim();
+
+    // 建议段检测和重试机制（最多重试2次）
+    let suggestionRetryCount = 0;
+    const maxSuggestionRetries = 2;
+    let suggestionDetection = detectSuggestionEnding(body);
+
+    while (suggestionDetection.hasSuggestion && suggestionRetryCount < maxSuggestionRetries) {
+      suggestionRetryCount++;
+      console.log(`[建议段检测-重新生成] 任务 ${taskId} 项 ${itemIndex} 检测到建议段，第 ${suggestionRetryCount} 次重试`);
+      console.log(`  - 匹配模式: ${suggestionDetection.matchedPatterns.join(', ')}`);
+      console.log(`  - 检测到的句子:`);
+      suggestionDetection.detectedSentences.forEach(s => console.log(`    * ${s}`));
+
+      // 重新生成，强化反建议段约束
+      try {
+        const antiSuggestionPrompt = getAntiSuggestionPrompt();
+        const retryPrompt = buildBatchRewritePrompt({
+          originalText: source.text,
+          strength,
+          logic: logics,
+          targetLength,
+          angle,
+          versionIndex: item.angle,
+          usedOpenings: usedOpenings
+        }) + antiSuggestionPrompt;
+
+        const retryText = await chat({
+          provider,
+          demo,
+          messages: [{ role: 'user', content: retryPrompt }],
+          temperature: 0.85,
+          maxTokens: Math.max(1024, Math.floor(source.text.length * 1.2))
+        });
+
+        body = retryText.trim();
+        suggestionDetection = detectSuggestionEnding(body);
+
+        if (!suggestionDetection.hasSuggestion) {
+          console.log(`[建议段检测-重新生成] 任务 ${taskId} 项 ${itemIndex} 重试成功，已消除建议段`);
+        }
+      } catch (e) {
+        console.log(`[建议段检测-重新生成] 任务 ${taskId} 项 ${itemIndex} 重试失败: ${e.message}`);
+        break;
+      }
+    }
+
+    // 如果重试2次后依然有建议段，添加警告标记
+    if (suggestionDetection.hasSuggestion) {
+      console.log(`[建议段检测-重新生成] 任务 ${taskId} 项 ${itemIndex} 达到最大重试次数，依然包含建议段`);
+      item.suggestionWarning = `检测到疑似建议段：${suggestionDetection.detectedSentences[0]?.substring(0, 30)}...`;
+    }
+
     item.body = body;
     item.status = ITEM_STATUS.GENERATED;
 
