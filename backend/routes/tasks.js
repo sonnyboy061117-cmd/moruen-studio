@@ -75,33 +75,7 @@ router.post('/rewrite', checkAccess, async (req, res) => {
     .catch(e => console.error('[rewrite] task', id, 'failed:', e.message));
 });
 
-// 轮询任务状态
-router.get('/tasks/:id', (req, res) => {
-  const t = getTask(req.params.id);
-  if (!t) return res.status(404).json({ error: '任务不存在' });
-  res.json(t);
-});
-
-// 列出最近任务
-router.get('/tasks', (req, res) => {
-  res.json({ tasks: listTasks() });
-});
-
-// 取消任务
-router.post('/tasks/:id/cancel', (req, res) => {
-  const result = cancelTask(req.params.id, req.body.reason);
-  if (result.success) {
-    res.json(result);
-  } else {
-    res.status(400).json(result);
-  }
-});
-
-router.get('/status-enum', (req, res) => {
-  res.json(ITEM_STATUS);
-});
-
-// 重新生成单篇文章
+// 重新生成单篇文章（必须放在 /tasks/:id 之前，避免被通配路由拦截）
 router.post('/tasks/:id/items/:index/regenerate', checkAccess, async (req, res) => {
   try {
     const { id, index } = req.params;
@@ -138,6 +112,32 @@ router.post('/tasks/:id/items/:index/regenerate', checkAccess, async (req, res) 
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
+});
+
+// 轮询任务状态
+router.get('/tasks/:id', (req, res) => {
+  const t = getTask(req.params.id);
+  if (!t) return res.status(404).json({ error: '任务不存在' });
+  res.json(t);
+});
+
+// 列出最近任务
+router.get('/tasks', (req, res) => {
+  res.json({ tasks: listTasks() });
+});
+
+// 取消任务
+router.post('/tasks/:id/cancel', (req, res) => {
+  const result = cancelTask(req.params.id, req.body.reason);
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(400).json(result);
+  }
+});
+
+router.get('/status-enum', (req, res) => {
+  res.json(ITEM_STATUS);
 });
 
 export default router;
