@@ -63,68 +63,9 @@ const MOCK_ARTICLE = (topic, length) => {
   return body.slice(0, Math.floor(length * 1.1));
 };
 
-const MOCK_REWRITE = (text) => {
-  const reversed = text.split(/[。！？\n]/).filter(s => s.trim()).reverse().join('。') + '。';
-  return `【改写后】\n\n${reversed}\n\n补充一点:这篇文章的核心观点我同意,但有些地方说得不够具体,我自己加了一些细节进去。原文里举的例子太老了,大家可能没感觉,改成了更贴近日常的版本。\n\n坦白说,改写不是简单的换词,是要把作者的逻辑重新捋一遍,用自己的话讲出来。如果你也想练这招,建议先从短文开始,300字以内的最容易上手。`;
-};
 
-const MOCK_DEAI = (text) => {
-  let out = text
-    .replace(/首先/g, '第一').replace(/其次/g, '还有').replace(/再次/g, '另外')
-    .replace(/最后/g, '说到底').replace(/综上所述/g, '讲到这里你应该明白了')
-    .replace(/总而言之/g, '反正').replace(/不得不说/g, '实话说')
-    .replace(/在当今社会/g, '现在这年头')
-    .replace(/随着[^,。]{2,15}的不断发展/g, '这几年')
-    .replace(/扮演着越来越重要的角色/g, '越来越关键')
-    .replace(/赋能/g, '帮上忙').replace(/数字化转型/g, '线上化');
-  if (!out.includes('我')) out = '我自己的感受是,' + out;
-  if (!out.includes('其实')) out = '其实,' + out;
-  return out;
-};
 
-const MOCK_LAYOUT = (text) => {
-  return text.split(/\n+/).map(p => p.trim()).filter(Boolean)
-    .map((p, i) => i === 0 ? `【${p}】` : `📌 ${p}`)
-    .join('\n\n');
-};
 
-async function mockChat({ messages, system, maxTokens, kind }) {
-  await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
-  const last = messages[messages.length - 1]?.content || '';
-  switch (kind) {
-    case 'title': {
-      const m = last.match(/生成\s*(\d+)\s*条/);
-      const count = m ? Math.min(parseInt(m[1]), 50) : 5;
-      const dm = last.match(/领域:([^\n]+)/);
-      const domain = dm ? dm[1].trim() : '理财';
-      const pool = MOCK_TITLES[domain] || MOCK_TITLES.理财;
-      const out = [];
-      let guard = 0;
-      while (out.length < count && guard++ < count * 3) {
-        const t = pool[out.length % pool.length];
-        if (!out.includes(t)) out.push(t);
-      }
-      return out.slice(0, count).map((t, i) => `${i + 1}. ${t}`).join('\n');
-    }
-    case 'original': {
-      const tm = last.match(/以"([^"]+)"/);
-      const lm = last.match(/(\d+)\s*字/);
-      const topic = tm ? tm[1] : '示例主题';
-      const length = lm ? parseInt(lm[1]) : 800;
-      return MOCK_ARTICLE(topic, length);
-    }
-    case 'rewrite':
-    case 'deai': {
-      const tm = last.match(/原文:\s*"""([\s\S]+?)"""/);
-      const text = tm ? tm[1].trim() : '这是一段示例原文,用于演示改写效果。';
-      return kind === 'deai' ? MOCK_DEAI(text) : MOCK_REWRITE(text);
-    }
-    case 'layout':
-      return MOCK_LAYOUT(last);
-    default:
-      return '【演示模式】这是 mock 模式的输出。配置 API Key 后会调用真实大模型。';
-  }
-}
 
 // 去掉上游错误里包含的 key 尾号(防止暴露)
 function sanitizeError(text) {

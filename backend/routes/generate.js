@@ -29,17 +29,14 @@ function ensureKey(provider, res) {
 
 // 1. 一键标题
 router.post('/title', checkAccess, async (req, res) => {
-  const { refs, count, domain, style, format, provider, demo } = req.body;
+  const { refs, count, domain, style, format, provider } = req.body;
   const p = provider || config.providers.default_provider;
 
   try {
-    // 自动演示模式或手动demo参数
-    const useDemo = demo || req.autoDemo;
-
-    // 非Demo模式且非会员，需要扣费
-    if (!useDemo && !req.membership.active) {
+    // 非会员需要扣费
+    if (!req.membership.active) {
       const cost = 0.02; // 一键标题成本约0.02元
-      const consumeResult = await checkAndConsumeBalance(cost, '一键标题生成');
+      const consumeResult = await checkAndConsumeBalance(cost, '一键标题生成', req.accessCode);
       if (!consumeResult.allowed) {
         return res.status(403).json({
           error: consumeResult.error,
@@ -50,7 +47,7 @@ router.post('/title', checkAccess, async (req, res) => {
 
     const text = await chat({
       provider: p,
-      demo: useDemo,
+      
       messages: [{ role: 'user', content: buildTitlePrompt({ refs, count, domain, style, format }) }],
       temperature: 0.95, maxTokens: 1024
     });
@@ -73,13 +70,10 @@ router.post('/universal', checkAccess, async (req, res) => {
   const p = provider || config.providers.default_provider;
 
   try {
-    // 自动演示模式或手动demo参数
-    const useDemo = demo || req.autoDemo;
-
-    // 非Demo模式且非会员，需要扣费
-    if (!useDemo && !req.membership.active) {
+    // 非会员需要扣费
+    if (!req.membership.active) {
       const cost = 0.05; // 万能改写成本约0.05元
-      const consumeResult = await checkAndConsumeBalance(cost, '万能改写');
+      const consumeResult = await checkAndConsumeBalance(cost, '万能改写', req.accessCode);
       if (!consumeResult.allowed) {
         return res.status(403).json({
           error: consumeResult.error,
@@ -98,7 +92,7 @@ router.post('/universal', checkAccess, async (req, res) => {
 
     let finalText;
     if (onlyDeAI) {
-      const r = await runDeAI({ text: workingText, provider: p, demo: useDemo });
+      const r = await runDeAI({ text: workingText, provider: p });
       finalText = r.text;
     } else {
       const prompt = buildUniversalPrompt({
@@ -122,7 +116,7 @@ router.post('/universal', checkAccess, async (req, res) => {
         try {
           out = await chat({
             provider: p,
-            demo: useDemo,
+            
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.85,
             maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
@@ -141,8 +135,17 @@ router.post('/universal', checkAccess, async (req, res) => {
 
       finalText = out.trim();
 
+      // 清理过程性标签
+      finalText = finalText
+        .replace(/【改写后】\s*/g, '')
+        .replace(/【原文】\s*/g, '')
+        .replace(/【分析】\s*/g, '')
+        .replace(/【第[一二三]阶段】\s*/g, '')
+        .replace(/第[一二三]阶段：?\s*/g, '')
+        .trim();
+
       // 完全重写强度：验证新增内容数量
-      if ((strength === '完全重写' || strength === '彻底重写') && !useDemo) {
+      if ((strength === '完全重写' || strength === '彻底重写') ) {
         const validation = validateFullRewrite(workingText, finalText);
 
         // 如果未达标，最多重试2次
@@ -156,12 +159,21 @@ router.post('/universal', checkAccess, async (req, res) => {
           try {
             out = await chat({
               provider: p,
-              demo: useDemo,
+              
               messages: [{ role: 'user', content: prompt }],
               temperature: 0.9, // 提高温度增加创造性
               maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
             });
             finalText = out.trim();
+
+            // 清理过程性标签
+            finalText = finalText
+              .replace(/【改写后】\s*/g, '')
+              .replace(/【原文】\s*/g, '')
+              .replace(/【分析】\s*/g, '')
+              .replace(/【第[一二三]阶段】\s*/g, '')
+              .replace(/第[一二三]阶段：?\s*/g, '')
+              .trim();
 
             // 重新验证
             const newValidation = validateFullRewrite(workingText, finalText);
@@ -197,7 +209,7 @@ router.post('/universal', checkAccess, async (req, res) => {
       }
 
       if (aiOff) {
-        const r = await runDeAI({ text: finalText, provider: p, demo: !!demo });
+        const r = await runDeAI({ text: finalText, provider: p,  });
         finalText = r.text;
       }
     }
@@ -205,7 +217,7 @@ router.post('/universal', checkAccess, async (req, res) => {
     // 精确化检测与自动重试（所有改写强度都需要检测）
     let fabricationRetry = 0;
     const maxFabricationRetries = 2;
-    let fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p, demo: useDemo });
+    let fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p });
 
     // 无条件日志：确认检测器被调用
     console.log(`[编造检测完成] hasFabrication=${fabricationCheck.hasFabrication}, 违规数=${fabricationCheck.violations.length}`);
@@ -215,7 +227,7 @@ router.post('/universal', checkAccess, async (req, res) => {
       console.log('[检测到的违规]', util.inspect(fabricationCheck.violations, { depth: null, colors: false, breakLength: Infinity }));
     }
 
-    while (fabricationCheck.hasFabrication && fabricationRetry < maxFabricationRetries && !useDemo) {
+    while (fabricationCheck.hasFabrication && fabricationRetry < maxFabricationRetries ) {
       fabricationRetry++;
       const violationReport = formatViolationReport(fabricationCheck.violations);
       console.warn(`[检测到内容编造问题，重新生成 ${fabricationRetry}/${maxFabricationRetries}]`, violationReport);
@@ -246,7 +258,7 @@ router.post('/universal', checkAccess, async (req, res) => {
 
         const retryOut = await chat({
           provider: p,
-          demo: useDemo,
+          
           messages: [{ role: 'user', content: retryPrompt }],
           temperature: 0.85,
           maxTokens: Math.max(1024, Math.floor(workingText.length * 1.5))
@@ -256,12 +268,12 @@ router.post('/universal', checkAccess, async (req, res) => {
 
         // 如果有aiOff，重新降AI味
         if (aiOff) {
-          const r = await runDeAI({ text: finalText, provider: p, demo: !!demo });
+          const r = await runDeAI({ text: finalText, provider: p,  });
           finalText = r.text;
         }
 
         // 重新检测
-        fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p, demo: useDemo });
+        fabricationCheck = await detectPrecisionFabrication(workingText, finalText, { provider: p });
         if (!fabricationCheck.hasFabrication) {
           console.log(`[内容编造检测通过，重试成功]`);
           break;
@@ -310,13 +322,10 @@ router.post('/layout', checkAccess, async (req, res) => {
   const p = provider || config.providers.default_provider;
 
   try {
-    // 自动演示模式
-    const useDemo = req.autoDemo;
-
-    // 非演示模式且非会员且有AI处理，需要扣费
-    if (!useDemo && (withAI || withAutoImages) && !req.membership.active) {
+    // 非会员且有AI处理，需要扣费
+    if ((withAI || withAutoImages) && !req.membership.active) {
       const cost = withAutoImages ? 0.1 : 0.03; // AI配图更贵
-      const consumeResult = await checkAndConsumeBalance(cost, '一键排版');
+      const consumeResult = await checkAndConsumeBalance(cost, '一键排版', req.accessCode);
       if (!consumeResult.allowed) {
         return res.status(403).json({
           error: consumeResult.error,

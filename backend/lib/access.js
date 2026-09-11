@@ -1,39 +1,15 @@
 // 墨韵工坊 · 权限检查中间件
 import { getMembership, getBalance, consume } from './db.js';
 
-// 演示模式每日使用次数记录（内存存储，重启清空）
-const demoUsage = new Map(); // key: date(YYYY-MM-DD), value: count
-
-// 获取今日演示模式使用次数
-function getTodayDemoCount() {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  return demoUsage.get(today) || 0;
-}
-
-// 增加演示模式使用次数
-function incrementDemoCount() {
-  const today = new Date().toISOString().split('T')[0];
-  const current = demoUsage.get(today) || 0;
-  demoUsage.set(today, current + 1);
-
-  // 清理3天前的旧记录
-  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  for (const [date] of demoUsage) {
-    if (date < threeDaysAgo) {
-      demoUsage.delete(date);
-    }
-  }
-}
-
-// 检查是否可以使用演示模式
-export function canUseDemoMode() {
-  const DAILY_DEMO_LIMIT = 3;
-  return getTodayDemoCount() < DAILY_DEMO_LIMIT;
+// 提取 accessCode 中间件（从请求头 X-Access-Code 读取并注入到 req.accessCode）
+export function extractAccessCode(req, res, next) {
+  req.accessCode = req.headers['x-access-code'] || null;
+  next();
 }
 
 // 检查会员状态
 export function checkMembership(req, res, next) {
-  const membership = getMembership();
+  const membership = getMembership(req.accessCode);
 
   if (!membership.active) {
     return res.status(403).json({
@@ -47,8 +23,8 @@ export function checkMembership(req, res, next) {
 }
 
 // 检查余额并扣费
-export async function checkAndConsumeBalance(amount, description) {
-  const balance = getBalance();
+export async function checkAndConsumeBalance(amount, description, accessCode) {
+  const balance = getBalance(accessCode);
 
   if (balance < amount) {
     return {
@@ -58,7 +34,7 @@ export async function checkAndConsumeBalance(amount, description) {
     };
   }
 
-  const result = consume(amount, description);
+  const result = consume(amount, description, accessCode);
   return {
     allowed: result.success,
     balance: result.balance,
@@ -66,40 +42,24 @@ export async function checkAndConsumeBalance(amount, description) {
   };
 }
 
-// 统一权限检查：会员 或 余额 或 演示模式（每日3次）
+// 统一权限检查：会员 或 余额（删除演示模式逻辑）
 export function checkAccess(req, res, next) {
-  const membership = getMembership();
-  const balance = getBalance();
+  const membership = getMembership(req.accessCode);
+  const balance = getBalance(req.accessCode);
 
-  // 情况1: 会员有效 或 余额充足 → 正常使用
+  // 会员有效 或 余额充足 → 正常使用
   if (membership.active || balance > 0) {
     req.hasAccess = true;
     req.membership = membership;
     req.balance = balance;
-    req.autoDemo = false;
     next();
   }
-  // 情况2: 无会员且无余额 → 尝试演示模式
-  else if (canUseDemoMode()) {
-    req.hasAccess = true;
-    req.membership = membership;
-    req.balance = balance;
-    req.autoDemo = true; // 标记为自动演示模式
-    req.demoCount = getTodayDemoCount() + 1;
-
-    // 增加演示模式计数
-    incrementDemoCount();
-
-    next();
-  }
-  // 情况3: 演示次数用完 → 拒绝访问
+  // 无会员且无余额 → 拒绝访问
   else {
     res.status(403).json({
-      error: '今日演示次数已用完（3次/天），请开通会员或充值余额',
-      code: 'DEMO_LIMIT_EXCEEDED',
-      message: '日会员仅需14.9元即可体验全部功能，或充值余额按次使用',
-      demoUsed: getTodayDemoCount(),
-      demoLimit: 3
+      error: '请开通会员或充值余额后使用',
+      code: 'ACCESS_DENIED',
+      message: '日会员仅需14.9元即可体验全部功能，或充值余额按次使用'
     });
   }
 }

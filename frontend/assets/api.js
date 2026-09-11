@@ -2,9 +2,25 @@
 // 所有调用走后端,Key 不再出现在浏览器
 const BASE = window.MORUEN_API_BASE || '';
 
+// 获取当前用户的 access_code
+function getAccessCode() {
+  return localStorage.getItem('moruen_access_code') || null;
+}
+
 async function req(path, opts = {}) {
+  // 自动添加 X-Access-Code 请求头
+  const accessCode = getAccessCode();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+
+  if (accessCode) {
+    headers['X-Access-Code'] = accessCode;
+  }
+
   const r = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers,
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined
   });

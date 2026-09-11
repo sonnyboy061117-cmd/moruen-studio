@@ -4,16 +4,18 @@
  * 计算两个文本的结构相似度
  * @param {string} original - 原文
  * @param {string} rewritten - 改写文本
+ * @param {string} strength - 改写强度 ('轻度', '中度', '深度')
  * @returns {object} 相似度报告
  */
-export function checkSimilarity(original, rewritten) {
+export function checkSimilarity(original, rewritten, strength = '中度') {
   const report = {
     overallScore: 0,
     structureScore: 0,
     sentenceScore: 0,
     vocabScore: 0,
     warnings: [],
-    passed: true
+    passed: true,
+    strength: strength
   };
 
   // 1. 结构相似度检测
@@ -34,19 +36,51 @@ export function checkSimilarity(original, rewritten) {
     report.vocabScore * 0.3
   );
 
-  // 5. 生成警告
-  if (report.structureScore > 70) {
-    report.warnings.push(`结构相似度过高(${report.structureScore}%)，段落顺序和开头方式过于接近原文`);
-  }
-  if (report.sentenceScore > 60) {
-    report.warnings.push(`句式相似度过高(${report.sentenceScore}%)，句子长度和标点模式过于相似`);
-  }
-  if (report.vocabScore > 65) {
-    report.warnings.push(`词汇重复度过高(${report.vocabScore}%)，用词替换不够充分`);
+  // 5. 根据改写强度设置阈值（批量改写专用）
+  let threshold;
+  let needsWarning = false;
+
+  switch (strength) {
+    case '轻度':
+      // 轻度改写：保留原文结构，阈值85%
+      threshold = 85;
+      needsWarning = report.overallScore > threshold;
+      report.passed = !needsWarning;
+      break;
+
+    case '中度':
+      // 中度改写：阈值75%
+      threshold = 75;
+      needsWarning = report.overallScore > threshold;
+      report.passed = !needsWarning;
+      break;
+
+    case '深度':
+      // 深度改写：阈值60%
+      threshold = 60;
+      needsWarning = report.overallScore > threshold;
+      report.passed = !needsWarning;
+      break;
+
+    default:
+      // 默认使用中度改写的阈值
+      threshold = 75;
+      needsWarning = report.overallScore > threshold;
+      report.passed = !needsWarning;
   }
 
-  // 6. 判断是否通过
-  report.passed = report.overallScore < 55; // 相似度阈值55%
+  // 6. 生成警告（只有超过阈值才警告）
+  if (needsWarning) {
+    if (report.structureScore > 70) {
+      report.warnings.push(`结构相似度过高(${report.structureScore}%)，段落顺序和开头方式过于接近原文`);
+    }
+    if (report.sentenceScore > 60) {
+      report.warnings.push(`句式相似度过高(${report.sentenceScore}%)，句子长度和标点模式过于相似`);
+    }
+    if (report.vocabScore > 65) {
+      report.warnings.push(`词汇重复度过高(${report.vocabScore}%)，用词替换不够充分`);
+    }
+  }
 
   return report;
 }

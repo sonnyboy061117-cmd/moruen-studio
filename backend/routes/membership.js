@@ -14,7 +14,9 @@ const MEMBERSHIP_TIERS = {
 // 获取会员状态
 router.get('/membership', (req, res) => {
   try {
-    const status = getMembership();
+    // 优先使用请求头，兼容 URL 参数
+    const accessCode = req.accessCode || req.query.code;
+    const status = getMembership(accessCode);
     res.json({ ...status, tiers: MEMBERSHIP_TIERS });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -60,7 +62,19 @@ router.post('/membership/manual-activate', (req, res) => {
       contact: contact.trim()
     });
 
-    res.json({ success: true, ...result });
+    // 拼接专属链接
+    const protocol = req.secure ? 'https' : 'http';
+    const host = req.get('host') || 'localhost:8787';
+    const accessUrl = `${protocol}://${host}/#/home?code=${result.accessCode}`;
+
+    res.json({
+      success: true,
+      id: result.id,
+      startDate: result.startDate,
+      expireDate: result.expireDate,
+      accessCode: result.accessCode,
+      accessUrl
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

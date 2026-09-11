@@ -11,6 +11,7 @@ import fetchRouter from './routes/fetch.js';
 import metaRouter from './routes/meta.js';
 import membershipRouter from './routes/membership.js';
 import walletRouter from './routes/wallet.js';
+import { extractAccessCode } from './lib/access.js';
 import './lib/keys.js'; // 触发主密钥初始化
 import './lib/db.js'; // 触发数据库初始化
 
@@ -60,6 +61,9 @@ function basicAuth(req, res, next) {
 
 app.use(cors({ origin: ALLOW_ORIGIN === '*' ? true : ALLOW_ORIGIN.split(',') }));
 app.use(express.json({ limit: '10mb' }));
+
+// 全局中间件：提取 X-Access-Code 请求头
+app.use(extractAccessCode);
 
 // 健康检查免登录
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));

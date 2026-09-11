@@ -9,7 +9,7 @@ const router = Router();
 
 // 创建并启动批量原创(立即返回 taskId,后台异步跑)
 router.post('/original', checkAccess, async (req, res) => {
-  const { topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, provider, concurrency, demo } = req.body;
+  const { topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, extraNote, provider, concurrency, demo } = req.body;
   const p = provider || config.providers.default_provider;
   if (!topics || !topics.length) return res.status(400).json({ error: '请填写至少 1 个主题' });
   if (topics.length > 10) return res.status(400).json({ error: '主题最多 10 个,当前 ' + topics.length + ' 个' });
@@ -17,14 +17,11 @@ router.post('/original', checkAccess, async (req, res) => {
     return res.status(400).json({ error: '单次最多 ' + config.prompts.max_total_articles + ' 篇' });
   }
 
-  // 自动演示模式或手动demo参数
-  const useDemo = demo || req.autoDemo;
-
-  // 非Demo模式且非会员，需要扣费
-  if (!useDemo && !req.membership.active) {
+  // 非会员需要扣费
+  if (!req.membership.active) {
     const totalCount = topics.length * perTopic;
     const cost = totalCount * 0.1; // 每篇约0.1元
-    const consumeResult = await checkAndConsumeBalance(cost, `批量原创(${totalCount}篇)`);
+    const consumeResult = await checkAndConsumeBalance(cost, `批量原创(${totalCount}篇)`, req.accessCode);
     if (!consumeResult.allowed) {
       return res.status(403).json({
         error: consumeResult.error,
@@ -39,7 +36,7 @@ router.post('/original', checkAccess, async (req, res) => {
   // 先放一个最小骨架(让前端立刻可见),稍后 runBatchOriginal 会覆盖
   res.json({ taskId: id, task: { id, type: 'original', total: topics.length * perTopic, items: [], status: 'pending' } });
   // 后台跑(不等),用我们预先生成的 id,保证前端 polling 拿到的 id 一致
-  runBatchOriginal({ topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, provider: p, concurrency, demo: useDemo, taskId: id })
+  runBatchOriginal({ topics, perTopic, length, domain, style, withImages, withAIOff, withFormat, extraNote, provider: p, concurrency,  taskId: id })
     .catch(e => console.error('[original] task', id, 'failed:', e.message));
 });
 
@@ -52,14 +49,11 @@ router.post('/rewrite', checkAccess, async (req, res) => {
   const sources = rawSources;
   if (!sources.length) return res.status(400).json({ error: '请填写至少 1 条原文/链接' });
 
-  // 自动演示模式或手动demo参数
-  const useDemo = demo || req.autoDemo;
-
-  // 非Demo模式且非会员，需要扣费
-  if (!useDemo && !req.membership.active) {
+  // 非会员需要扣费
+  if (!req.membership.active) {
     const totalCount = sources.length * count;
     const cost = totalCount * 0.08; // 每篇约0.08元
-    const consumeResult = await checkAndConsumeBalance(cost, `批量改写(${totalCount}篇)`);
+    const consumeResult = await checkAndConsumeBalance(cost, `批量改写(${totalCount}篇)`, req.accessCode);
     if (!consumeResult.allowed) {
       return res.status(403).json({
         error: consumeResult.error,
@@ -71,7 +65,7 @@ router.post('/rewrite', checkAccess, async (req, res) => {
   const { newId } = await import('../lib/tasks.js');
   const id = newId();
   res.json({ taskId: id, task: { id, type: 'rewrite', total: sources.length * count, items: [], status: 'pending' } });
-  runBatchRewrite({ sources, count, strength, logics, targetLength, provider: p, concurrency, withAIOff, demo: useDemo, taskId: id })
+  runBatchRewrite({ sources, count, strength, logics, targetLength, provider: p, concurrency, withAIOff,  taskId: id })
     .catch(e => console.error('[rewrite] task', id, 'failed:', e.message));
 });
 
@@ -85,14 +79,13 @@ router.post('/tasks/:id/items/:index/regenerate', checkAccess, async (req, res) 
       return res.status(400).json({ error: '无效的文章索引' });
     }
 
-    const { provider, demo } = req.body;
+    const { provider } = req.body;
     const p = provider || config.providers.default_provider;
-    const useDemo = demo || req.autoDemo;
 
-    // 非Demo模式且非会员，需要扣费（单篇重新生成约0.08元）
-    if (!useDemo && !req.membership.active) {
+    // 非会员需要扣费（单篇重新生成约0.08元）
+    if (!req.membership.active) {
       const cost = 0.08;
-      const consumeResult = await checkAndConsumeBalance(cost, `重新生成单篇`);
+      const consumeResult = await checkAndConsumeBalance(cost, `重新生成单篇`, req.accessCode);
       if (!consumeResult.allowed) {
         return res.status(403).json({
           error: consumeResult.error,
@@ -104,8 +97,7 @@ router.post('/tasks/:id/items/:index/regenerate', checkAccess, async (req, res) 
     const result = await regenerateSingleItem({
       taskId: id,
       itemIndex,
-      provider: p,
-      demo: useDemo
+      provider: p
     });
 
     res.json(result);

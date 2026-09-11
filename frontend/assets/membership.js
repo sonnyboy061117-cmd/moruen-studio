@@ -5,7 +5,9 @@
 // 加载会员状态
 async function loadMembershipStatus() {
   try {
-    const res = await fetch('/api/membership');
+    const accessCode = localStorage.getItem('moruen_access_code');
+    const url = accessCode ? `/api/membership?code=${accessCode}` : '/api/membership';
+    const res = await fetch(url);
     const data = await res.json();
 
     // 渲染会员状态
@@ -105,7 +107,9 @@ async function activateMembership(tier) {
 // 加载钱包信息
 async function loadWalletInfo() {
   try {
-    const res = await fetch('/api/wallet');
+    const accessCode = localStorage.getItem('moruen_access_code');
+    const url = accessCode ? `/api/wallet?code=${accessCode}` : '/api/wallet';
+    const res = await fetch(url);
     const data = await res.json();
 
     // 显示余额（始终保留两位小数）
@@ -155,10 +159,16 @@ function showRechargeDialog() {
 // 充值
 async function rechargeWallet(amount) {
   try {
+    const accessCode = localStorage.getItem('moruen_access_code');
+    if (!accessCode) {
+      showToast('未找到访问凭证', 'error');
+      return;
+    }
+
     const res = await fetch('/api/wallet/recharge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
+      body: JSON.stringify({ amount, code: accessCode })
     });
 
     const data = await res.json();
@@ -176,10 +186,15 @@ async function rechargeWallet(amount) {
 // 消费（内部调用）
 async function consumeBalance(amount, description) {
   try {
+    const accessCode = localStorage.getItem('moruen_access_code');
+    if (!accessCode) {
+      return { success: false, message: '未找到访问凭证' };
+    }
+
     const res = await fetch('/api/wallet/consume', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, description })
+      body: JSON.stringify({ amount, description, code: accessCode })
     });
 
     const data = await res.json();
@@ -287,6 +302,22 @@ async function adminActivateMembership() {
     const data = await res.json();
     if (data.success) {
       showToast(`开通成功！有效期 ${days} 天`, 'success');
+
+      // 显示专属链接
+      const resultEl = document.getElementById('admin-activate-result');
+      if (resultEl) {
+        resultEl.innerHTML = `
+          <div style="margin-top:16px;padding:16px;background:var(--emerald-soft);border:1px solid var(--emerald);border-radius:8px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--emerald);">✓ 开通成功</div>
+            <div style="font-size:13px;color:var(--text-2);margin-bottom:8px;">专属访问链接（有效期 ${days} 天）：</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" readonly value="${data.accessUrl}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;background:white;">
+              <button class="btn btn-primary" onclick="copyAccessUrl('${data.accessUrl}')" style="white-space:nowrap;">复制链接</button>
+            </div>
+          </div>
+        `;
+      }
+
       // 清空输入框
       document.getElementById('admin-activate-contact').value = '';
       document.querySelector('input[name="admin-activate-type"][value="experience"]').checked = true;
@@ -312,6 +343,29 @@ function toggleAdminActivateDays() {
 }
 window.toggleAdminActivateDays = toggleAdminActivateDays;
 
+// 复制专属链接
+function copyAccessUrl(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('链接已复制到剪贴板', 'success');
+  }).catch(err => {
+    // 降级方案：使用传统方法
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      showToast('链接已复制到剪贴板', 'success');
+    } catch (e) {
+      showToast('复制失败，请手动复制', 'error');
+    }
+    document.body.removeChild(textarea);
+  });
+}
+window.copyAccessUrl = copyAccessUrl;
+
 // 加载开通记录
 async function loadAdminActivateHistory() {
   try {
@@ -331,23 +385,32 @@ async function loadAdminActivateHistory() {
 
       historyEl.innerHTML = `
         <div style="max-height:400px;overflow-y:auto;">
-          ${data.history.map(item => `
+          ${data.history.map(item => {
+            const host = window.location.host;
+            const protocol = window.location.protocol;
+            const accessUrl = item.access_code ? `${protocol}//${host}/#/home?code=${item.access_code}` : null;
+
+            return `
             <div style="padding:12px 0;border-bottom:1px solid var(--border-soft);">
               <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px;">
-                <div>
+                <div style="flex:1;">
                   <div style="font-size:13px;font-weight:500;">
                     ${tierLabels[item.tier] || item.tier}
                     ${item.activation_type === 'manual_service' ? '<span style="background:var(--amber-soft);color:var(--amber);padding:2px 6px;border-radius:4px;font-size:11px;margin-left:6px;">体验价</span>' : ''}
                   </div>
                   ${item.contact ? `<div style="font-size:12px;color:var(--text-2);margin-top:4px;">联系方式：${item.contact}</div>` : ''}
+                  ${item.access_code ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;">访问码：${item.access_code}</div>` : ''}
                   <div style="font-size:12px;color:var(--muted);margin-top:4px;">${new Date(item.created_at).toLocaleString('zh-CN')}</div>
                 </div>
-                <div style="font-size:14px;font-weight:600;color:var(--primary);">
-                  ¥${item.price.toFixed(2)}
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+                  <div style="font-size:14px;font-weight:600;color:var(--primary);">
+                    ¥${item.price.toFixed(2)}
+                  </div>
+                  ${accessUrl ? `<button class="btn" onclick="copyAccessUrl('${accessUrl}')" style="font-size:11px;padding:4px 8px;white-space:nowrap;">复制链接</button>` : ''}
                 </div>
               </div>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
       `;
     }
