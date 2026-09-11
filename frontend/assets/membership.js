@@ -345,24 +345,43 @@ window.toggleAdminActivateDays = toggleAdminActivateDays;
 
 // 复制专属链接
 function copyAccessUrl(url) {
-  navigator.clipboard.writeText(url).then(() => {
+  // 优先使用传统方法（兼容性更好）
+  const textarea = document.createElement('textarea');
+  textarea.value = url;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  textarea.setAttribute('readonly', '');
+  document.body.appendChild(textarea);
+
+  // 选中文本
+  textarea.select();
+  textarea.setSelectionRange(0, url.length);
+
+  let success = false;
+  try {
+    success = document.execCommand('copy');
+  } catch (e) {
+    console.error('复制失败:', e);
+  }
+
+  document.body.removeChild(textarea);
+
+  if (success) {
     showToast('链接已复制到剪贴板', 'success');
-  }).catch(err => {
-    // 降级方案：使用传统方法
-    const textarea = document.createElement('textarea');
-    textarea.value = url;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand('copy');
-      showToast('链接已复制到剪贴板', 'success');
-    } catch (e) {
-      showToast('复制失败，请手动复制', 'error');
+  } else {
+    // 尝试现代API作为备选
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('链接已复制到剪贴板', 'success');
+      }).catch(err => {
+        console.error('Clipboard API失败:', err);
+        showToast('复制失败，请手动复制: ' + url, 'error', 5000);
+      });
+    } else {
+      showToast('复制失败，请手动复制: ' + url, 'error', 5000);
     }
-    document.body.removeChild(textarea);
-  });
+  }
 }
 window.copyAccessUrl = copyAccessUrl;
 
