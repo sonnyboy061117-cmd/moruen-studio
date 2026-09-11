@@ -10,14 +10,20 @@ export async function chat({ provider, messages, temperature = 0.8, maxTokens = 
   if (!p) throw new Error('未知供应商: ' + provider);
 
   // 如果提供了tempKey，使用它；否则从存储中获取
-  // 如果供应商设置了 default_configured: true，则跳过 API Key 检查
   let apiKey = tempKey || getKey(provider);
-  if (!apiKey && !p.default_configured) {
-    throw new Error(`未配置 ${p.name || provider} 的 API Key(可在「模型秘钥」页开启演示模式)`);
-  }
-  // 对于 default_configured 的供应商，使用空字符串作为 API Key
+
+  // 对于 default_configured 的供应商，从环境变量读取 API Key
   if (!apiKey && p.default_configured) {
-    apiKey = 'default-configured-key';
+    const envKeyName = `${provider.toUpperCase()}_API_KEY`;
+    apiKey = process.env[envKeyName];
+    if (!apiKey) {
+      throw new Error(`未配置 ${p.name || provider} 的 API Key，请设置环境变量 ${envKeyName}`);
+    }
+  }
+
+  // 其他供应商需要在前端配置密钥
+  if (!apiKey) {
+    throw new Error(`未配置 ${p.name || provider} 的 API Key(可在「模型秘钥」页开启演示模式)`);
   }
   const m = model || p.default_model;
 
